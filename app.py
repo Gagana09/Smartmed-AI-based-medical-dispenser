@@ -5,6 +5,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 import pandas as pd
 from terminal_web_chatbot import TerminalStyleWebChatbot
+import datetime
 
 # Load environment variables from .env (only GROQ_API_KEY expected)
 load_dotenv()
@@ -142,9 +143,37 @@ def chat():
     session['chatbot_state'] = bot_instance.get_serializable_state()
     # Only store in MongoDB if chat is done
     if bot_instance.state.get('step') == 'done':
+        # Check chat history for last 2 days
+        user_doc = users_collection.find_one({'username': username}, {'chat_history': 1})
+        now = datetime.datetime.utcnow()
+        two_days_ago = now - datetime.timedelta(days=2)
+        recent_chats = []
+        if user_doc and 'chat_history' in user_doc:
+            for entry in user_doc['chat_history']:
+                try:
+                    ts = datetime.datetime.fromisoformat(entry.get('timestamp', ''))
+                    if ts > two_days_ago:
+                        recent_chats.append(entry)
+                except Exception:
+                    continue
+        if len(recent_chats) >= 2:
+            response = "Consult a doctor since you're falling sick frequently."
+            return jsonify({'response': response})
+        # Extract info for chat history
+        user_flags = bot_instance.state.get('user_flags', {})
+        symptoms_yes = [k for k, v in user_flags.items() if v.strip().lower() == 'yes']
+        all_symptoms = list(user_flags.keys())
+        recommendation = response
+        timestamp = now.isoformat()
+        chat_entry = {
+            'symptoms': symptoms_yes,
+            'all_symptoms': all_symptoms,
+            'recommendation': recommendation,
+            'timestamp': timestamp
+        }
         users_collection.update_one(
             {'username': username},
-            {'$set': {'chatbot_state': bot_instance.get_serializable_state()}},
+            {'$push': {'chat_history': chat_entry}},
             upsert=True
         )
     return jsonify({'response': response})
