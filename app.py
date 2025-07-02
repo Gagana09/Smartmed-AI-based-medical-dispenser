@@ -22,6 +22,14 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client['IDP']
 users_collection = db['users']
 
+def filter_longest_medicines(medicine_list):
+    sorted_meds = sorted(medicine_list, key=len, reverse=True)
+    filtered = []
+    for i, med in enumerate(sorted_meds):
+        if not any(med in other for other in sorted_meds[:i]):
+            filtered.append(med)
+    return filtered
+
 @app.route('/')
 def home():
     return render_template('base.html')
@@ -165,11 +173,39 @@ def chat():
         all_symptoms = list(user_flags.keys())
         recommendation = response
         timestamp = now.isoformat()
+
+        # Medicine extraction logic (must match terminal_web_chatbot.py)
+        matched_medicines = []
+        rec_lower = recommendation.lower()
+        for med in [
+            'Paracetamol 500mg', 'Limcee 500mg', 'ORS', 'Zincovit syrup', 'Zincovit tablet',
+            'Benadryl Dry Cough syrup', 'Honey-ginger lozenges', 'Mucosolvan cough syrup',
+            'Ambrolite cough syrup', 'Meftal Spas tablet', 'Cold pack', 'Levocetirizine 5mg',
+            'Bromhexine syrup', 'Ambroxol syrup', 'Heat patch', 'Saline nasal spray',
+            'Vicks Lozenges', 'Paracetamol 650mg', 'Paracetamol 500-650mg',
+            'Herbal Lozenge (Vicks/Himalaya)', 'Rantac', 'Gelusil', 'Digene',
+            'Pantoprazole 40mg', 'Clove gel', 'Benzocain gel', 'Antihistamines- Cetrizine',
+            'Strepsils', 'Decongestants ( phenylephrine)', 'Paracetamol',
+            'Nasal decongestants (oxymetazoline)', 'Pantoprazole', 'Antacid( Gelusil)',
+            'Simethicone', 'Clove oil', 'Meftal spas 250 mg', 'Meftal spas 500mg',
+            'Mouthwash ( chlorhexidine)', 'Antiseptic gel', 'Compression wrap',
+            'Crepe bandage', 'Pain relief gel ( diclofenac )', 'Elastic support bandage',
+            'Ice pack', 'Warm compress ( heat patch )', 'Herbal lozenges ( Vicks, adulsa )',
+            'Dextromethorphan syrup', 'Cough lozenges ( benzydamine)'
+        ]:
+            if any(part.strip().lower() in rec_lower for part in med.lower().split(',')):
+                if med not in matched_medicines:
+                    matched_medicines.append(med)
+        # Filter out medicines that are substrings of longer ones
+        if matched_medicines:
+            matched_medicines = filter_longest_medicines(matched_medicines)
+
         chat_entry = {
             'symptoms': symptoms_yes,
             'all_symptoms': all_symptoms,
             'recommendation': recommendation,
-            'timestamp': timestamp
+            'timestamp': timestamp,
+            'medicine': matched_medicines if matched_medicines else None
         }
         users_collection.update_one(
             {'username': username},

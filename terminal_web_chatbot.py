@@ -12,6 +12,93 @@ _GLOBAL_DF = None
 _GLOBAL_PREDICTOR = None
 _GLOBAL_LOCK = threading.Lock()
 
+# List of medicines to check for dispensing prompt
+MEDICINE_LIST = [
+    'Paracetamol 500 mg',
+    'Vitamin C (Limcee)',
+    'Paracetamol',
+    'ORS',
+    'Zincovit syrup/tab',
+    'Vitamin C',
+    'Limcee 500 mg (Vit C)',
+    'Zincovit',
+    'electrolyte solution',
+    'electrolyte water',
+    'antihistamines (e.g. Cetirizine)',
+    'Lozenges (e.g. Strepsils)',
+    'Decongestant (e.g. Phenylephrine)',
+    'Cetirizine',
+    'Saline nasal spray',
+    'Lozenges',
+    'Antihistamines',
+    'mild saline spray',
+    'nasal drops',
+    'Benadryl Dry Cough',
+    'Honey-ginger lozenges',
+    'Mucosolvan / Ambrolite',
+    'nasal decongestant (e.g. oxymetazoline)',
+    'saline nasal drops',
+    'Meftal Spas',
+    'mild nasal spray',
+    'Pantoprazole',
+    'Antacids like Gelusil',
+    'Simethicone (for gas)',
+    'Clove oil (topical)',
+    'Paracetamol 500mg',
+    'Paracetamol',
+    'lozenges',
+    'Caffeine + Paracetamol',
+    'Levocetirizine 5 mg',
+    'Bromhexine syrup',
+    'Paracetamol',
+    'Ambroxol/Bromhexine syrup',
+    'saline nasal spray',
+    'lozenges',
+    'herbal lozenges (e.g., Vicks Lozenges/Adulsa)',
+    'Paracetamol combo tablet',
+    'Paracetamol 500–650 mg',
+    'Caffeine + Paracetamol combo (e.g., Saridon)',
+    'OTC analgesics',
+    'Herbal lozenge (Vicks/Himalaya)',
+    'Herbal lozenges',
+    'dextromethorphan',
+    'Caffeine + Paracetamol combo tablet',
+    'cough lozenges (e.g., benzydamine or ambroxol lozenges',
+    'Herbal lozenge (Vicks/Himalaya)',
+    'dextromethorphan syrup',
+    'Herbal lozenges',
+    'paracetamol 500 mg',
+    'Meftal-Spas 250–500 mg',
+    'antacid (e.g., Rantac)',
+    'Paracetamol 650 mg',
+    'clove/benzocaine gel + warm rinse',
+    'warm saline rinse + topical clove/benzocaine gel',
+    'clove oil or dental pain gel',
+    'antacid',
+    'mouthwash (chlorhexidine if available)',
+    'H2-blocker or antacid (Rantac, Gelusil)',
+    'Pantoprazole 40 mg',
+    'Antacid (Digene or Gelusil)',
+    'warm rinse + clove gel',
+    'Gelusil or Digene',
+    'clove or antiseptic gel',
+    'pain relief gel (e.g., diclofenac)',
+    'crepe bandage',
+    'cold pack',
+    'compression wrap',
+    'compression bandage',
+    'elastic support bandage',
+]
+
+def filter_longest_medicines(medicine_list):
+    # Sort by length descending, so longer names come first
+    sorted_meds = sorted(medicine_list, key=len, reverse=True)
+    filtered = []
+    for i, med in enumerate(sorted_meds):
+        if not any(med in other for other in sorted_meds[:i]):
+            filtered.append(med)
+    return filtered
+
 def get_global_df_and_predictor():
     global _GLOBAL_DF, _GLOBAL_PREDICTOR
     with _GLOBAL_LOCK:
@@ -439,6 +526,19 @@ class TerminalStyleWebChatbot:
         row = s['final_row']
         rec = row["OTC/Doc"] if "OTC/Doc" in row else row["Otc/Doc"]
         s['step'] = 'done'
+
+        # Partial matching for all medicines
+        matched_medicines = []
+        rec_lower = rec.lower()
+        for med in MEDICINE_LIST:
+            if any(part.strip().lower() in rec_lower for part in med.lower().split(',')):
+                if med not in matched_medicines:
+                    matched_medicines.append(med)
+        # Filter out medicines that are substrings of longer ones
+        if matched_medicines:
+            filtered_meds = filter_longest_medicines(matched_medicines)
+            med_str = ', '.join(filtered_meds)
+            rec += f"\n\nDo you want to dispense {med_str}?"
         return f"Based on your profile and symptoms:\n→ Recommendation: {rec}"
 
     def get_greeting(self):
