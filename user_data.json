@@ -1,0 +1,29 @@
+{
+    "2": {
+        "age": 20,
+        "gender": "Male",
+        "confirmed_symptoms": [
+            "stomach cramps",
+            "dark urine",
+            "dry mouth",
+            "sunken eyes; diarrhoea not improving after 2 days"
+        ]
+    },
+    "no": {
+        "age": 20,
+        "gender": "Male",
+        "primary_symptom": "stomach cramps",
+        "confirmed_symptoms": [
+            "stomach cramps",
+            "feeling sick; blood or mucus in stool",
+            "sunken eyes; diarrhoea not improving after 2 days"
+        ]
+    },
+    "": {
+        "age": 2,
+        "gender": "Male",
+        "confirmed_symptoms": [
+            "runny nose"
+        ]
+    }
+}

@@ -1,0 +1,20 @@
+COMPLETE DATASET SYMPTOM COMBINATION ANALYSIS
+================================================================================
+
+Dataset: 3880 total patients
+Total unique combinations: 12
+
+ALL SYMPTOM COMBINATIONS:
+--------------------------------------------------
+  1. [Common Cold, Fever] - 192 cases (4.95%)
+  2. [Cough, Fever] - 192 cases (4.95%)
+  3. [Fever, Headache] - 192 cases (4.95%)
+  4. [Body Pain, Fever] - 192 cases (4.95%)
+  5. [Common Cold, Cough] - 192 cases (4.95%)
+  6. [Common Cold, Headache] - 192 cases (4.95%)
+  7. [Cough, Headache] - 192 cases (4.95%)
+  8. [Body Pain, Cough] - 192 cases (4.95%)
+  9. [Body Pain, Headache] - 192 cases (4.95%)
+ 10. [Headache, Indigestion] - 192 cases (4.95%)
+ 11. [Fever, Toothache] - 192 cases (4.95%)
+ 12. [Body Pain, Menstrual Cramps] - 96 cases (2.47%)
