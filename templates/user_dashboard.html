@@ -51,6 +51,7 @@
             const chatBox = document.getElementById('chat-box');
             const chatForm = document.getElementById('chat-form');
             const chatInput = document.getElementById('chat-input');
+            
             function appendMessage(sender, text, isWarning=false) {
                 const msgEl = document.createElement('div');
                 msgEl.classList.add('chat-message', sender);
@@ -110,6 +111,7 @@
                 chatInput.disabled = true;
                 chatInput.value = '';
                 appendMessage('user', userMsg);
+                
                 try {
                     const response = await fetch("{{ url_for('chat') }}", {
                         method: 'POST',
@@ -117,24 +119,45 @@
                         body: JSON.stringify({ message: userMsg })
                     });
                     const data = await response.json();
-                    // Handle object or string response
-                    if (typeof data === 'object' && data !== null) {
-                        if (typeof data.response === 'string') {
-                            appendMessage('bot', data.response);
-                            if (data.options) {
-                                renderOptions(data.options);
-                            }
-                        } else if (typeof data.response === 'object' && data.response.response) {
-                            appendMessage('bot', data.response.response);
-                            if (data.response.options) {
-                                renderOptions(data.response.options);
-                            }
-                        } else {
-                            appendMessage('bot', 'Oops! Something went wrong. Please try again.', true);
+                    
+                    console.log('Server response:', data); // Debug log
+                    
+                    // Fixed response handling logic
+                    let botMsg = null;
+                    let options = null;
+                    
+                    if (typeof data === 'string') {
+                        // Simple string response
+                        botMsg = data;
+                    } else if (typeof data === 'object' && data !== null) {
+                        if (data.response && data.options) {
+                            // Direct response with options format: {response: "...", options: [...]}
+                            botMsg = data.response;
+                            options = data.options;
+                        } else if (data.response && typeof data.response === 'object' && data.response.response) {
+                            // Nested response format: {response: {response: "...", options: [...]}}
+                            botMsg = data.response.response;
+                            options = data.response.options;
+                        } else if (data.response && typeof data.response === 'string') {
+                            // Simple response format: {response: "..."}
+                            botMsg = data.response;
                         }
-                    } else {
-                        appendMessage('bot', 'Oops! Something went wrong. Please try again.', true);
                     }
+                    
+                    // Fallback: if we still don't have botMsg, try to extract it
+                    if (!botMsg) {
+                        botMsg = JSON.stringify(data);
+                    }
+                    
+                    // Display the message
+                    appendMessage('bot', botMsg);
+                    
+                    // Render options if they exist
+                    if (options && Array.isArray(options)) {
+                        console.log('Rendering options:', options); // Debug log
+                        renderOptions(options);
+                    }
+                    
                 } catch (error) {
                     console.error('Error:', error);
                     appendMessage('bot', 'Oops! Something went wrong. Please try again.', true);

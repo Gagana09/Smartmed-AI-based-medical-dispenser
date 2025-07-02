@@ -1,6 +1,7 @@
 import pandas as pd
 from symptom_predictor import SymptomPredictor, SYMPTOMS
 import threading
+import re
 
 DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
@@ -90,6 +91,30 @@ MEDICINE_LIST = [
     'elastic support bandage',
 ]
 
+# Updated mapping for follow-up 1 questions and their options (full list from user)
+FOLLOWUP_1_QUESTIONS = {
+    "Is your fever above 104°F?": ["Yes", "No"],
+    "Do you have a runny or blocked nose?": ["Runny", "Blocked"],
+    "Is the cough dry or brings mucus?": ["Dry", "Mucus"],
+    "Are the cramps interfering with daily activities?": ["Yes", "No"],
+    "Have you taken any spicy, oily or heavy food?": ["Yes", "No"],
+    "Is the pain sharp?": ["Yes", "No"],
+    "Is the pain constant?": ["Yes", "No"],
+    "Is the pain in one specific area?": ["Yes", "No"],
+    "Is there any swelling or bruising at the injured area?": ["Yes", "No"],
+    "Is the headache throbbing or dull?": ["Throbbing", "Dull"],
+    "Is pain spread throughout your body?": ["Yes", "No"],
+    "Are you experiencing nasal congestion?": ["Yes", "No"],
+    "Is the headache worse around your forehead or eyes?": ["Forehead", "Eyes"],
+    "Does coughing make the headache worse?": ["Yes", "No"],
+    "Do you feel muscle pain from coughing too much?": ["Yes", "No"],
+    "Is the pain also in your lower back or thighs?": ["Lower Back", "Thighs"],
+    "Do you feel tired or weak along with both symptoms?": ["Yes", "No"],
+    "Do you feel nausea or bloating with the headache?": ["Yes", "No"],
+    "Is there swelling near the tooth or gum?": ["Yes", "No"],
+    "Is the cough dry or with mucus?": ["Dry", "Mucus"],
+}
+
 def filter_longest_medicines(medicine_list):
     # Normalize to lower and strip for comparison, but keep original for output
     normalized = [(med.strip().lower(), med) for med in medicine_list]
@@ -118,6 +143,13 @@ def get_global_df_and_predictor():
             _GLOBAL_PREDICTOR = SymptomPredictor()
             _GLOBAL_PREDICTOR.train_on_csv(DATASET_PATH)
     return _GLOBAL_DF, _GLOBAL_PREDICTOR
+
+def normalize_question(q):
+    # Lowercase, strip, remove punctuation and extra spaces
+    q = q.strip().lower()
+    q = re.sub(r'[\s]+', ' ', q)
+    q = re.sub(r'[?.,:;!]', '', q)
+    return q
 
 class TerminalStyleWebChatbot:
     def __init__(self, csv_path=DATASET_PATH):
@@ -278,7 +310,7 @@ class TerminalStyleWebChatbot:
                     s['current_followup_qcol'] = None
                     s['current_row_index'] = None
                     for idx, row in s['filter_df'].iterrows():
-                        for i in range(1, 5):
+                        for i in range(1, 4):
                             q_col = f"Follow up question {i}"
                             a_col = f"Answer {i}"
                             if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" and f"followup_{i}_answered" not in s:
@@ -286,7 +318,11 @@ class TerminalStyleWebChatbot:
                                 s[f"current_followup_qcol"] = q_col
                                 s[f"current_row_index"] = idx
                                 print(f"[DEBUG] Next follow-up after skip: {q_col} -> {str(row[q_col]).strip()}")
-                                return str(row[q_col]).strip()
+                                q = str(row[q_col]).strip()
+                                for key in FOLLOWUP_1_QUESTIONS:
+                                    if normalize_question(key) == normalize_question(q):
+                                        return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
+                                return q
                     if s['filter_df'] is not None and len(s['filter_df']) >= 1:
                         print(f"[DEBUG] No more follow-ups, giving recommendation.")
                         s['final_row'] = s['filter_df'].iloc[0]
@@ -310,8 +346,12 @@ class TerminalStyleWebChatbot:
                             ans_lower = val
                             matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
                             break
-                s[f"followup_{col.split()[-1]}_answer"] = ans_lower
-                s[f"followup_{col.split()[-1]}_answered"] = True
+                try:
+                    followup_num = int(col.split()[-1])
+                except Exception:
+                    followup_num = 1  # fallback
+                s[f"followup_{followup_num}_answer"] = ans_lower
+                s[f"followup_{followup_num}_answered"] = True
                 s['current_followup_col'] = None
                 s['current_followup_qcol'] = None
                 s['current_row_index'] = None
@@ -332,7 +372,7 @@ class TerminalStyleWebChatbot:
             # Find the next unanswered follow-up question (ONLY 1-3)
             found_next = False
             for idx, row in s['filter_df'].iterrows():
-                for i in range(1, 4):  # Only 1-3
+                for i in range(1, 4):
                     q_col = f"Follow up question {i}"
                     a_col = f"Answer {i}"
                     fq = row.get(q_col, None) if hasattr(row, 'get') else None
@@ -340,20 +380,12 @@ class TerminalStyleWebChatbot:
                         continue
                     q = fq
                     if q and f"followup_{i}_answered" not in s:
-                        if a_col not in s['filter_df'].columns:
-                            print(f"[DEBUG] {a_col} not in DataFrame, giving recommendation from first row. Columns are: {list(s['filter_df'].columns)}")
-                            s['final_row'] = s['filter_df'].iloc[0]
-                            s['step'] = 'final_recommendation'
-                            # Clear follow-up state
-                            s['current_followup_col'] = None
-                            s['current_followup_qcol'] = None
-                            s['current_row_index'] = None
-                            return self._final_recommendation()
                         s[f"current_followup_col"] = a_col
                         s[f"current_followup_qcol"] = q_col
                         s[f"current_row_index"] = idx
-                        print(f"[DEBUG] Next follow-up: {q_col} -> {q}")
-                        found_next = True
+                        for key in FOLLOWUP_1_QUESTIONS:
+                            if normalize_question(key) == normalize_question(q):
+                                return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
                         return q
             # If no more follow-ups, always give the recommendation from the first row
             if not found_next:
@@ -361,12 +393,10 @@ class TerminalStyleWebChatbot:
                 s['current_followup_qcol'] = None
                 s['current_row_index'] = None
                 if s['filter_df'] is not None and len(s['filter_df']) > 0:
-                    print(f"[DEBUG] All follow-ups answered or no more valid follow-ups. Giving top recommendation.")
                     s['final_row'] = s['filter_df'].iloc[0]
                     s['step'] = 'final_recommendation'
                     return self._final_recommendation()
                 else:
-                    print(f"[DEBUG] No more follow-ups and no rows left, fallback.")
                     s['step'] = 'done'
                     return "Sorry, no matching profile found. Please consult a doctor."
             return self._followup_prompt()
@@ -530,7 +560,6 @@ class TerminalStyleWebChatbot:
         if s['filter_df'] is None or s['filter_df'].empty:
             s['step'] = 'done'
             return "Sorry, no matching profile found. Please consult a doctor."
-        
         # Find the next unanswered follow-up question from any row in filter_df (ONLY 1-3)
         for idx, row in s['filter_df'].iterrows():
             for i in range(1, 4):
@@ -542,6 +571,9 @@ class TerminalStyleWebChatbot:
                         s[f"current_followup_col"] = a_col
                         s[f"current_followup_qcol"] = q_col
                         s[f"current_row_index"] = idx
+                        for key in FOLLOWUP_1_QUESTIONS:
+                            if normalize_question(key) == normalize_question(q):
+                                return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
                         return q
         # If no more follow-ups found, proceed to recommendation
         if s['filter_df'] is not None and len(s['filter_df']) >= 1:
