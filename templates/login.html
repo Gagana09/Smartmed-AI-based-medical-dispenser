@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login – Smartmed AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+  <!-- Header -->
+  <header>
+    <div class="logo">
+      <h1>Smartmed AI</h1>
+      <p>Your Smart Medical Dispenser & Assistant</p>
+    </div>
+    <nav>
+      <ul>
+        <li><a href="{{ url_for('home') }}">Home</a></li>
+        <li><a href="{{ url_for('login') }}">Login</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <!-- Login Section -->
+  <section class="login-section">
+    <div class="overlay">
+      <h2>Login</h2>
+      <form action="{{ url_for('login') }}" method="POST" style="max-width: 400px; margin: auto;">
+        <div class="form-group" style="margin-bottom: 20px; text-align: left;">
+          <label for="role">Select Role</label>
+          <select id="role" name="role" required style="width: 100%; padding: 10px;">
+            <option value="" disabled selected>-- Choose Role --</option>
+            <option value="user">User</option>
+            <option value="admin">Admin</option>
+          </select>
+        </div>
+        <div class="form-group" style="margin-bottom: 20px; text-align: left;">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="e.g. johndoe" required style="width: 100%; padding: 10px;">
+        </div>
+        <div class="form-group" style="margin-bottom: 20px; text-align: left;">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="••••••••" required style="width: 100%; padding: 10px;">
+        </div>
+        <div class="form-group">
+          <button type="submit" style="padding: 10px 20px; background-color: #70929b; color: white; border: none; border-radius: 5px; cursor: pointer;">Login</button>
+        </div>
+      </form>
+      <div class="register-link" style="margin-top: 15px;">
+        <p>Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <p>&copy; 2025 Smartmed AI. All rights reserved.</p>
+  </footer>
+
+</body>
+</html>

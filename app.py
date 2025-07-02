@@ -1,0 +1,161 @@
+import os
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from pymongo import MongoClient
+from werkzeug.security import generate_password_hash, check_password_hash
+from dotenv import load_dotenv
+import pandas as pd
+from terminal_web_chatbot import TerminalStyleWebChatbot
+
+# Load environment variables from .env (only GROQ_API_KEY expected)
+load_dotenv()
+
+to_load = os.environ.get('GROQ_API_KEY')
+
+app = Flask(__name__)
+# Secret key for sessions—keep this value in code or generate securely
+# IMPORTANT: For production, this should be a strong, randomly generated value and kept secret.
+app.secret_key = os.urandom(24) # A more robust secret key for development
+
+# MongoDB connection (defaults to localhost)
+client = MongoClient("mongodb://localhost:27017/")
+db = client['IDP']
+users_collection = db['users']
+
+@app.route('/')
+def home():
+    return render_template('base.html')
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        role = request.form['role']
+        username = request.form['username']
+        password = request.form['password']
+
+        if role == 'admin':
+            user = db.admin.find_one({'username': username})
+        else:
+            user = db.users.find_one({'username': username})
+
+        if user and check_password_hash(user['password'], password):
+            session['user'] = {'role': role, 'username': username}
+            session['username'] = username
+            print(f"DEBUG: User '{username}' logged in successfully. Session user: {session.get('user')}")
+            return redirect(url_for('admin_dashboard' if role == 'admin' else 'user_dashboard'))
+        flash("Invalid credentials", 'error')
+        print(f"DEBUG: Login failed for username: {username}")
+        return redirect(url_for('login'))
+    return render_template('login.html')
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if request.method == 'POST':
+        username = request.form['username']
+        email = request.form['email']
+        password = request.form['password']
+        confirm_password = request.form['confirm_password']
+
+        if password != confirm_password:
+            flash("Passwords do not match", 'error')
+            return redirect(url_for('register'))
+
+        if db.users.find_one({'$or': [{'username': username}, {'email': email}] } ):
+            flash("Username or email already exists", 'error')
+            return redirect(url_for('register'))
+
+        db.users.insert_one({
+            'username': username,
+            'email': email,
+            'password': generate_password_hash(password),
+            'chatbot_state': {},
+            'symptoms_history': [],
+            'recommendations_history': []
+        })
+        flash("Registration successful. Please login.", 'success')
+        return redirect(url_for('login'))
+    return render_template('register.html')
+
+@app.route('/admin_dashboard')
+def admin_dashboard():
+    return render_template('admin_dashboard.html')
+
+@app.route('/user_dashboard')
+def user_dashboard():
+    username = session.get('user', {}).get('username')
+    print(f"DEBUG: user_dashboard accessed by username: {username}")
+    # Use session state only, do not load from DB except at start
+    if 'chatbot_state' not in session or session['chatbot_state'].get('user_id') != username:
+        print("DEBUG: Initializing new chatbot state for session or user changed.")
+        bot_instance = TerminalStyleWebChatbot()
+        session['chatbot_state'] = bot_instance.get_serializable_state()
+    else:
+        print(f"DEBUG: Loading existing chatbot state for session. Current step: {session['chatbot_state'].get('step')}")
+        bot_instance = TerminalStyleWebChatbot()
+        bot_instance.restore_state(session['chatbot_state'])
+    greeting = bot_instance.get_greeting()
+    print(f"DEBUG: user_dashboard greeting: {greeting}")
+    return render_template('user_dashboard.html', greeting=greeting)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    flash("You've been logged out.", 'info')
+    print("DEBUG: Session cleared on logout.")
+    return redirect(url_for('login'))
+
+# Legacy endpoints (optional)
+@app.route('/analyze_symptoms', methods=['POST'])
+def analyze_symptoms():
+    symptoms = request.form.get('symptoms', '')
+    flash("Symptom analysis not implemented yet. You entered: " + symptoms)
+    return redirect(url_for('user_dashboard'))
+
+@app.route('/confirm_dispense', methods=['POST'])
+def confirm_dispense():
+    medicine = request.form.get('medicine', '')
+    flash(f"Dispense confirmation not implemented yet. You clicked: {medicine}")
+    return redirect(url_for('user_dashboard'))
+
+# Chat endpoint
+@app.route('/chat', methods=['POST'])
+def chat():
+    # Ensure user is logged in
+    username = session.get('username')
+    if not username:
+        return jsonify({'response': 'You must be logged in to use the chatbot.'}), 401
+    # Use session state only
+    if 'chatbot_state' not in session:
+        bot_instance = TerminalStyleWebChatbot()
+        session['chatbot_state'] = bot_instance.get_serializable_state()
+    else:
+        bot_instance = TerminalStyleWebChatbot()
+        bot_instance.restore_state(session['chatbot_state'])
+    print("DEBUG: State before processing:", bot_instance.state)
+    # If this is a greeting request, just return the greeting
+    if request.json.get('greeting'):
+        return jsonify({'response': bot_instance.get_greeting()})
+    # Process user input
+    user_input = request.json['message']
+    response = bot_instance.get_response(user_input)
+    print("DEBUG: State after processing:", bot_instance.state)
+    # Always update session state after processing
+    session['chatbot_state'] = bot_instance.get_serializable_state()
+    # Only store in MongoDB if chat is done
+    if bot_instance.state.get('step') == 'done':
+        users_collection.update_one(
+            {'username': username},
+            {'$set': {'chatbot_state': bot_instance.get_serializable_state()}},
+            upsert=True
+        )
+    return jsonify({'response': response})
+
+if __name__ == "__main__":
+    import signal
+    import sys
+
+    def signal_handler(sig, frame):
+        print('\nShutting down gracefully...')
+        sys.exit(0)
+
+    signal.signal(signal.SIGINT, signal_handler)
+    app.run(debug=True, use_reloader=True)

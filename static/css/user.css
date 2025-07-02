@@ -1,0 +1,238 @@
+/* ================= User Dashboard Styles ================= */
+
+/* Main container to center form */
+/* main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+} */
+
+/* Symptom Form Container */
+.symptom-form {
+    background-color: rgba(255, 255, 255, 0.9);
+    padding: 40px 30px;
+    border-radius: 12px;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+    text-align: center;
+    width: 100%;
+    max-width: 500px;
+}
+
+/* Label */
+.symptom-form label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+
+html, body {
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    background: #181818;
+    color: #e0e0e0;
+    font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+}
+
+/* Background image setup */
+body {
+    background: url("../images/background3.jpg") no-repeat center center fixed;
+    background-size: cover;
+}
+
+/* Main takes full height minus header/footer */
+main {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 40px 20px;
+}
+
+/* Overlay Box (same as home/about style) */
+.overlay {
+    background-color: rgba(255, 255, 255, 0.85);
+    padding: 40px;
+    border-radius: 12px;
+    width: 100%;
+    max-width: 600px;
+    text-align: center;
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Symptom form style */
+.symptom-form label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #333;
+    font-size: 1.1rem;
+}
+
+.symptom-form textarea {
+    width: 100%;
+    padding: 12px;
+    font-size: 1rem;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    resize: vertical;
+}
+
+/* Animated Submit Button */
+.symptom-form button {
+    background-color: #70929b;
+    color: white;
+    padding: 12px 24px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.1rem;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    transition: background-color 0.3s ease, transform 0.2s ease;
+}
+
+.symptom-form button:hover {
+    background-color: #5a7b83;
+    transform: scale(1.05);
+}
+
+/* Recommendation Output */
+.result {
+    margin-top: 30px;
+    text-align: center;
+}
+
+.result h2 {
+    color: #70929b;
+}
+
+.result p {
+    font-size: 1.1rem;
+    color: #444;
+}
+
+/* Footer at bottom */
+footer {
+    background-color: #70929b;
+    color: white;
+    padding: 15px;
+    text-align: center;
+    margin-top: auto;
+}
+/* Header Bar */
+header {
+    background-color: #70929b;
+    color: white;
+    padding: 20px;
+    text-align: center;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+}
+
+header .logo h1 {
+    margin: 0;
+    font-size: 2.5em;
+}
+
+header .logo p {
+    margin: 5px 0 0;
+    font-weight: 300;
+}
+
+/* Chat Interface Styles */
+.chat-interface {
+  display: flex;
+  flex-direction: column;
+  height: 400px;         /* adjust as needed */
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.chat-box {
+  background: #181818;
+  color: #e0e0e0;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  padding: 20px;
+  border-radius: 8px;
+  min-height: 350px;
+  max-height: 60vh;
+  overflow-y: auto;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-form {
+  display: flex;
+  margin-top: 10px;
+}
+
+#chat-input {
+  flex: 1;
+  background: #181818;
+  color: #e0e0e0;
+  border: none;
+  border-bottom: 2px solid #50fa7b;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  font-size: 1.1em;
+  outline: none;
+  padding: 8px 10px;
+  transition: border-color 0.2s;
+}
+
+#chat-input:focus {
+  border-bottom: 2px solid #bd93f9;
+}
+
+#chat-input::placeholder {
+  color: #444;
+  opacity: 1;
+}
+
+.blinking-cursor {
+  font-weight: bold;
+  font-size: 1.1em;
+  color: #50fa7b;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  to { visibility: hidden; }
+}
+
+/* Chat bubble styles */
+.chat-message {
+  margin: 6px 0;
+  padding: 8px 14px;
+  border-radius: 6px;
+  max-width: 80%;
+  white-space: pre-line;
+  font-size: 1.05em;
+}
+
+.chat-message.user {
+  background: #232323;
+  color: #8be9fd;
+  align-self: flex-end;
+  border-left: 3px solid #50fa7b;
+}
+
+/* Bot messages on the left */
+.chat-message.bot {
+  background: #22212c;
+  color: #f8f8f2;
+  align-self: flex-start;
+  border-left: 3px solid #bd93f9;
+}
+
+.chat-message.warning {
+  background: #3b1c1c;
+  color: #ff5555;
+  border-left: 3px solid #ff5555;
+}

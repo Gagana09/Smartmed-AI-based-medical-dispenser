@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - SmartMed AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <header>
+        <h1>Admin Dashboard - SmartMed AI</h1>
+        <nav>
+            <a href="{{ url_for('logout') }}">Logout</a>
+        </nav>
+    </header>
+
+    <main>
+        <section>
+            <h2>User Symptom Submissions</h2>
+            {% if submissions %}
+                <table>
+                    <thead>
+                        <tr>
+                            <th>User</th>
+                            <th>Symptoms</th>
+                            <th>Recommended Medicine</th>
+                            <th>Date Submitted</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for submission in submissions %}
+                        <tr>
+                            <td>{{ submission.username }}</td>
+                            <td>{{ submission.symptoms }}</td>
+                            <td>{{ submission.medicine }}</td>
+                            <td>{{ submission.timestamp }}</td>
+                            <td>{{ submission.status }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p>No submissions yet.</p>
+            {% endif %}
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2025 SmartMed AI</p>
+    </footer>
+
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SmartMed AI - First Aid Medical Dispenser</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+
+    <!-- Header -->
+    <header>
+        <div class="logo">
+            <h1>SmartMed AI</h1>
+            <p>Your Smart Medical Dispenser & Assistant</p>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('login') }}">Login</a></li>
+                <li><a href="{{ url_for('register') }}">Register</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="overlay">
+            <h2>AI-Powered First Aid at Your Fingertips</h2>
+            <p>SmartMed AI provides instant access to over-the-counter medicines and first aid supplies using voice or text input, powered by intelligent symptom analysis.</p>
+        </div>
+    </section>
+
+    <!-- About Project -->
+    <section class="about">
+        <h2>About the Project</h2>
+        <p>
+            SmartMed AI allows users to enter their symptoms through text or voice on the website. 
+            Based on the input, the system analyzes the symptoms and dispenses the appropriate over-the-counter medicine if required.
+        </p>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; 2025 SmartMed AI. All rights reserved.</p>
+    </footer>
+
+</body>
+</html>
