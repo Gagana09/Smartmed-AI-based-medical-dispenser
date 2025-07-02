@@ -23,11 +23,16 @@ db = client['IDP']
 users_collection = db['users']
 
 def filter_longest_medicines(medicine_list):
-    sorted_meds = sorted(medicine_list, key=len, reverse=True)
+    normalized = [(med.strip().lower(), med) for med in medicine_list]
+    sorted_meds = sorted(normalized, key=lambda x: len(x[0]), reverse=True)
     filtered = []
-    for i, med in enumerate(sorted_meds):
-        if not any(med in other for other in sorted_meds[:i]):
-            filtered.append(med)
+    seen = set()
+    for i, (norm_med, orig_med) in enumerate(sorted_meds):
+        if any(norm_med in other for other, _ in sorted_meds[:i]):
+            continue
+        if norm_med not in seen:
+            filtered.append(orig_med)
+            seen.add(norm_med)
     return filtered
 
 @app.route('/')
@@ -193,10 +198,10 @@ def chat():
             'Ice pack', 'Warm compress ( heat patch )', 'Herbal lozenges ( Vicks, adulsa )',
             'Dextromethorphan syrup', 'Cough lozenges ( benzydamine)'
         ]:
+            med_norm = med.strip().lower()
             if any(part.strip().lower() in rec_lower for part in med.lower().split(',')):
-                if med not in matched_medicines:
+                if not any(m.strip().lower() == med_norm for m in matched_medicines):
                     matched_medicines.append(med)
-        # Filter out medicines that are substrings of longer ones
         if matched_medicines:
             matched_medicines = filter_longest_medicines(matched_medicines)
 

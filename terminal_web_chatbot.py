@@ -91,12 +91,19 @@ MEDICINE_LIST = [
 ]
 
 def filter_longest_medicines(medicine_list):
-    # Sort by length descending, so longer names come first
-    sorted_meds = sorted(medicine_list, key=len, reverse=True)
+    # Normalize to lower and strip for comparison, but keep original for output
+    normalized = [(med.strip().lower(), med) for med in medicine_list]
+    # Sort by length of normalized name descending
+    sorted_meds = sorted(normalized, key=lambda x: len(x[0]), reverse=True)
     filtered = []
-    for i, med in enumerate(sorted_meds):
-        if not any(med in other for other in sorted_meds[:i]):
-            filtered.append(med)
+    seen = set()
+    for i, (norm_med, orig_med) in enumerate(sorted_meds):
+        if any(norm_med in other for other, _ in sorted_meds[:i]):
+            continue
+        # Avoid duplicates (case-insensitive)
+        if norm_med not in seen:
+            filtered.append(orig_med)
+            seen.add(norm_med)
     return filtered
 
 def get_global_df_and_predictor():
@@ -527,14 +534,16 @@ class TerminalStyleWebChatbot:
         rec = row["OTC/Doc"] if "OTC/Doc" in row else row["Otc/Doc"]
         s['step'] = 'done'
 
-        # Partial matching for all medicines
+        # Partial matching for all medicines (case-insensitive)
         matched_medicines = []
         rec_lower = rec.lower()
         for med in MEDICINE_LIST:
+            med_norm = med.strip().lower()
             if any(part.strip().lower() in rec_lower for part in med.lower().split(',')):
-                if med not in matched_medicines:
+                # Avoid duplicates (case-insensitive)
+                if not any(m.strip().lower() == med_norm for m in matched_medicines):
                     matched_medicines.append(med)
-        # Filter out medicines that are substrings of longer ones
+        # Filter out medicines that are substrings of longer ones (case-insensitive)
         if matched_medicines:
             filtered_meds = filter_longest_medicines(matched_medicines)
             med_str = ', '.join(filtered_meds)
