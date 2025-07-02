@@ -98,7 +98,7 @@ FOLLOWUP_1_QUESTIONS = {
     "Is the cough dry or brings mucus?": ["Dry", "Mucus"],
     "Are the cramps interfering with daily activities?": ["Yes", "No"],
     "Have you taken any spicy, oily or heavy food?": ["Yes", "No"],
-    "Is the pain sharp?": ["Yes", "No"],
+    "Is the pain sharp": ["Yes", "No"],
     "Is the pain constant?": ["Yes", "No"],
     "Is the pain in one specific area?": ["Yes", "No"],
     "Is there any swelling or bruising at the injured area?": ["Yes", "No"],
@@ -113,6 +113,38 @@ FOLLOWUP_1_QUESTIONS = {
     "Do you feel nausea or bloating with the headache?": ["Yes", "No"],
     "Is there swelling near the tooth or gum?": ["Yes", "No"],
     "Is the cough dry or with mucus?": ["Dry", "Mucus"],
+}
+
+# Mapping for follow-up 2 questions and their options
+FOLLOWUP_2_QUESTIONS = {
+    "Are you feeling weak or tired along with the fever": ["Yes", "No"],
+    "Do you have a sore throat": ["Yes", "No"],
+    "Have you been exposed to dust/smoke/allergens": ["Yes", "No"],
+    "Is this pain typical for your periods": ["Yes", "No"],
+    "Is the pain burning, bloating or cramping": ["Yes", "No"],
+    "Does it get worse with hot, cold, sweet foods": ["Yes", "No"],
+    "Did you get enough sleep, had food or stay hydrated": ["Yes", "No"],
+    "Have you done any physical activity recently": ["Yes", "No"],
+    "Can you move or put weight on the affected part": ["Yes", "No"],
+    "Are you feeling chills or sweating": ["Chills", "Sweating"],
+    "Do you feel tired or weak along with cough": ["Yes", "No"],
+    "Do you feel light sensitivity or eye strain": ["Yes", "No"],
+    "Do you feel shivering or fatigue": ["Yes", "No"],
+    "Does the cough worsen at night": ["Yes", "No"],
+    "Does bending forward make headache worse": ["Yes", "No"],
+    "Is your throat sore or irritated": ["Yes", "No"],
+    "Is breathing deeply painful": ["Yes", "No"],
+    "Do you feel bloated or fatigued": ["Bloated", "Fatigued"],
+    "Did you strain yourself or have poor sleep recently": ["Yes", "No"],
+    "Do the symptoms feel worse after eating or skipping meals": ["Yes", "No"],
+    "Do you have a bad taste or foul smell in your mouth": ["Yes", "No"],
+}
+
+# Mapping for follow-up 3 questions and their options (add your questions and options here)
+FOLLOWUP_3_QUESTIONS = {
+    # Example:
+    # "Is your appetite reduced": ["Yes", "No"],
+    # Add your actual follow-up 3 questions and options here
 }
 
 def filter_longest_medicines(medicine_list):
@@ -319,9 +351,19 @@ class TerminalStyleWebChatbot:
                                 s[f"current_row_index"] = idx
                                 print(f"[DEBUG] Next follow-up after skip: {q_col} -> {str(row[q_col]).strip()}")
                                 q = str(row[q_col]).strip()
+                                print(f"[DEBUG] Checking follow-up question: '{q}' (normalized: '{normalize_question(q)}')")
+                                print(f"[DEBUG] All normalized keys: {[normalize_question(k) for k in FOLLOWUP_1_QUESTIONS]}")
                                 for key in FOLLOWUP_1_QUESTIONS:
                                     if normalize_question(key) == normalize_question(q):
+                                        if 'pain sharp' in normalize_question(q):
+                                            print('FORCED MATCH for pain sharp')
+                                            return {"response": q, "options": ["Yes", "No"]}
                                         return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
+                                for key in FOLLOWUP_2_QUESTIONS:
+                                    if normalize_question(key) == normalize_question(q):
+                                        return {"response": q, "options": FOLLOWUP_2_QUESTIONS[key]}
+                                if i == 3:
+                                    return {"response": q, "options": ["Yes", "No"]}
                                 return q
                     if s['filter_df'] is not None and len(s['filter_df']) >= 1:
                         print(f"[DEBUG] No more follow-ups, giving recommendation.")
@@ -383,9 +425,19 @@ class TerminalStyleWebChatbot:
                         s[f"current_followup_col"] = a_col
                         s[f"current_followup_qcol"] = q_col
                         s[f"current_row_index"] = idx
+                        print(f"[DEBUG] Checking follow-up question: '{q}' (normalized: '{normalize_question(q)}')")
+                        print(f"[DEBUG] All normalized keys: {[normalize_question(k) for k in FOLLOWUP_1_QUESTIONS]}")
                         for key in FOLLOWUP_1_QUESTIONS:
                             if normalize_question(key) == normalize_question(q):
+                                if 'pain sharp' in normalize_question(q):
+                                    print('FORCED MATCH for pain sharp')
+                                    return {"response": q, "options": ["Yes", "No"]}
                                 return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
+                        for key in FOLLOWUP_2_QUESTIONS:
+                            if normalize_question(key) == normalize_question(q):
+                                return {"response": q, "options": FOLLOWUP_2_QUESTIONS[key]}
+                        if i == 3:
+                            return {"response": q, "options": ["Yes", "No"]}
                         return q
             # If no more follow-ups, always give the recommendation from the first row
             if not found_next:
@@ -571,9 +623,19 @@ class TerminalStyleWebChatbot:
                         s[f"current_followup_col"] = a_col
                         s[f"current_followup_qcol"] = q_col
                         s[f"current_row_index"] = idx
+                        print(f"[DEBUG] Checking follow-up question: '{q}' (normalized: '{normalize_question(q)}')")
+                        print(f"[DEBUG] All normalized keys: {[normalize_question(k) for k in FOLLOWUP_1_QUESTIONS]}")
                         for key in FOLLOWUP_1_QUESTIONS:
                             if normalize_question(key) == normalize_question(q):
+                                if 'pain sharp' in normalize_question(q):
+                                    print('FORCED MATCH for pain sharp')
+                                    return {"response": q, "options": ["Yes", "No"]}
                                 return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
+                        for key in FOLLOWUP_2_QUESTIONS:
+                            if normalize_question(key) == normalize_question(q):
+                                return {"response": q, "options": FOLLOWUP_2_QUESTIONS[key]}
+                        if i == 3:
+                            return {"response": q, "options": ["Yes", "No"]}
                         return q
         # If no more follow-ups found, proceed to recommendation
         if s['filter_df'] is not None and len(s['filter_df']) >= 1:
