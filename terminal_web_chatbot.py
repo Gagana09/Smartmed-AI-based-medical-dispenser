@@ -2,7 +2,7 @@ import pandas as pd
 from symptom_predictor import SymptomPredictor, SYMPTOMS
 import threading
 
-DATASET_PATH = r"C:/Users/Supriya S/OneDrive/Desktop/IDP/dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -193,24 +193,45 @@ class TerminalStyleWebChatbot:
             s['user_flags'][main_symptom] = "Yes"
             s['asked'] = set([main_symptom])
             s['step'] = 'ml_symptom_loop'
-            return self._ml_symptom_prompt()
+            # Immediately ask the first related symptom with options
+            # Find next unasked symptom
+            unasked = [sym for sym in s['symptom_list'] if sym not in s['asked']]
+            demographics = {}
+            if s.get('age_bucket') is not None:
+                demographics['Age'] = s['age_bucket']
+            if s.get('weight_bucket') is not None:
+                demographics['Weight'] = s['weight_bucket']
+            if s.get('gender') is not None:
+                demographics['Gender'] = s['gender']
+            ranked = self.predictor.get_next_best_symptom(s['user_flags'], unasked, demographics)
+            ranked = [r for r in ranked if r['probability'] >= 0.1]
+            if not ranked:
+                s['step'] = 'filter_and_followup'
+                return self._filter_and_followup()
+            s['ml_symptom'] = ranked[0]['symptom']
+            prob = ranked[0]['probability']
+            return {
+                "response": f"Do you also have {s['ml_symptom']}? (Yes/No) [Confidence: {prob*100:.1f}%]",
+                "options": ["Yes", "No"]
+            }
         if s['step'] == 'ml_symptom_loop':
             # Handle ML symptom answer
             if s['ml_symptom']:
                 ans = user_input.strip().title()
                 if ans not in ["Yes", "No"]:
-                    return f"Please answer Yes or No. Do you also have {s['ml_symptom']}?"
+                    return {
+                        "response": f"Please answer Yes or No. Do you also have {s['ml_symptom']}?",
+                        "options": ["Yes", "No"]
+                    }
                 s['user_flags'][s['ml_symptom']] = ans
                 s['asked'].add(s['ml_symptom'])
                 s['ml_symptom'] = None  # Clear the current symptom
-            
             # Find next unasked symptom
             unasked = [sym for sym in s['symptom_list'] if sym not in s['asked']]
             if not unasked:
                 # All symptoms collected, now filter the dataset
                 s['step'] = 'filter_and_followup'
                 return self._filter_and_followup()
-            
             # Prepare demographics dict if available
             demographics = {}
             if s.get('age_bucket') is not None:
@@ -227,7 +248,10 @@ class TerminalStyleWebChatbot:
                 return self._filter_and_followup()
             s['ml_symptom'] = ranked[0]['symptom']
             prob = ranked[0]['probability']
-            return f"Do you also have {s['ml_symptom']}? (Yes/No) [Confidence: {prob*100:.1f}%]"
+            return {
+                "response": f"Do you also have {s['ml_symptom']}? (Yes/No) [Confidence: {prob*100:.1f}%]",
+                "options": ["Yes", "No"]
+            }
         if s['step'] == 'filter_and_followup':
             return self._filter_and_followup()
         if s['step'] == 'followup_loop':

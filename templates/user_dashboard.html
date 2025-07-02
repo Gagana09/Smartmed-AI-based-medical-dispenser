@@ -59,6 +59,28 @@
                 chatBox.appendChild(msgEl);
                 chatBox.scrollTop = chatBox.scrollHeight;
             }
+
+            function renderOptions(options) {
+                clearOptions();
+                const chatForm = document.getElementById('chat-form');
+                options.forEach(option => {
+                    const btn = document.createElement('button');
+                    btn.type = 'button';
+                    btn.className = 'option-btn btn';
+                    btn.textContent = option;
+                    btn.onclick = async function() {
+                        chatInput.value = option;
+                        chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                    };
+                    chatForm.appendChild(btn);
+                });
+            }
+
+            function clearOptions() {
+                const oldOptions = document.querySelectorAll('.option-btn');
+                oldOptions.forEach(btn => btn.remove());
+            }
+
             // On page load, fetch the greeting from the backend
             fetch("{{ url_for('chat') }}", {
                 method: 'POST',
@@ -67,6 +89,7 @@
             })
             .then(response => response.json())
             .then(data => appendMessage('bot', data.response));
+
             // Remove initial bot message if user starts over
             function clearChat() {
                 chatBox.innerHTML = '';
@@ -78,8 +101,10 @@
                 .then(response => response.json())
                 .then(data => appendMessage('bot', data.response));
             }
+
             chatForm.addEventListener('submit', async function(e) {
                 e.preventDefault();
+                clearOptions();
                 const userMsg = chatInput.value.trim();
                 if (!userMsg) return;
                 chatInput.disabled = true;
@@ -92,10 +117,23 @@
                         body: JSON.stringify({ message: userMsg })
                     });
                     const data = await response.json();
-                    if (data.response && data.response.startsWith('Sorry, I didn\'t understand.')) {
-                        appendMessage('bot', data.response, true);
+                    // Handle object or string response
+                    if (typeof data === 'object' && data !== null) {
+                        if (typeof data.response === 'string') {
+                            appendMessage('bot', data.response);
+                            if (data.options) {
+                                renderOptions(data.options);
+                            }
+                        } else if (typeof data.response === 'object' && data.response.response) {
+                            appendMessage('bot', data.response.response);
+                            if (data.response.options) {
+                                renderOptions(data.response.options);
+                            }
+                        } else {
+                            appendMessage('bot', 'Oops! Something went wrong. Please try again.', true);
+                        }
                     } else {
-                        appendMessage('bot', data.response);
+                        appendMessage('bot', 'Oops! Something went wrong. Please try again.', true);
                     }
                 } catch (error) {
                     console.error('Error:', error);
@@ -105,6 +143,7 @@
                     chatInput.focus();
                 }
             });
+
             // Optional: allow Ctrl+L to clear chat (like a terminal)
             chatInput.addEventListener('keydown', function(e) {
                 if (e.ctrlKey && e.key.toLowerCase() === 'l') {
