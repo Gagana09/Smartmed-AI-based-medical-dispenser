@@ -4,90 +4,21 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>User Dashboard - SmartMed AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}">
-    <style>
-        .chat-box {
-            background: #181818;
-            color: #e0e0e0;
-            font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
-            padding: 20px;
-            border-radius: 8px;
-            min-height: 350px;
-            max-height: 60vh;
-            overflow-y: auto;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
-            display: flex;
-            flex-direction: column;
-        }
-        .chat-message {
-            margin: 6px 0;
-            padding: 8px 14px;
-            border-radius: 6px;
-            max-width: 80%;
-            white-space: pre-line;
-            font-size: 1.05em;
-        }
-        .chat-message.user {
-            background: #232323;
-            color: #8be9fd;
-            align-self: flex-end;
-            border-left: 3px solid #50fa7b;
-        }
-        .chat-message.bot {
-            background: #22212c;
-            color: #f8f8f2;
-            align-self: flex-start;
-            border-left: 3px solid #bd93f9;
-        }
-        .chat-message.warning {
-            background: #3b1c1c;
-            color: #ff5555;
-            border-left: 3px solid #ff5555;
-        }
-        .chat-form {
-            display: flex;
-            margin-top: 10px;
-        }
-        #chat-input {
-            flex: 1;
-            background: #181818;
-            color: #e0e0e0;
-            border: none;
-            border-bottom: 2px solid #50fa7b;
-            font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
-            font-size: 1.1em;
-            outline: none;
-            padding: 8px 10px;
-            transition: border-color 0.2s;
-        }
-        #chat-input:focus {
-            border-bottom: 2px solid #bd93f9;
-        }
-        #chat-input::placeholder {
-            color: #444;
-            opacity: 1;
-        }
-        .blinking-cursor {
-            font-weight: bold;
-            font-size: 1.1em;
-            color: #50fa7b;
-            animation: blink 1s steps(2, start) infinite;
-        }
-        @keyframes blink {
-            to { visibility: hidden; }
-        }
-    </style>
 </head>
 <body>
-
     <header>
-        <h1>Welcome to SmartMed AI</h1>
-        <p>Enter your symptoms below to get a recommendation.</p>
+        <div class="logo">
+            <h1>SmartMed AI</h1>
+            <p>Your Smart Medical Dispenser & Assistant</p>
+        </div>
         <nav>
-            <a href="{{ url_for('logout') }}">Logout</a>
+            <ul>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            </ul>
         </nav>
     </header>
-
     <main>
         <div class="overlay">
             <section class="chat-interface">
@@ -97,7 +28,7 @@
                 <form id="chat-form" class="chat-form" autocomplete="off">
                     <input type="text" id="chat-input" placeholder=">" autocomplete="off" autofocus>
                     <span class="blinking-cursor">|</span>
-                    <button type="submit" style="display:none;">Send</button>
+                    <button type="submit" class="btn" style="display:none;">Send</button>
                 </form>
             </section>
             {% if recommendation %}
@@ -106,18 +37,15 @@
                 <p>{{ recommendation }}</p>
                 <form action="{{ url_for('confirm_dispense') }}" method="POST">
                     <input type="hidden" name="medicine" value="{{ recommendation }}">
-                    <button type="submit">Confirm & Dispense</button>
+                    <button type="submit" class="btn">Confirm & Dispense</button>
                 </form>
             </section>
             {% endif %}
         </div>
     </main>
-    
-
     <footer>
         <p>&copy; 2025 SmartMed AI</p>
     </footer>
-
     <script>
         document.addEventListener('DOMContentLoaded', function() {
             const chatBox = document.getElementById('chat-box');
