@@ -273,11 +273,7 @@ class TerminalStyleWebChatbot:
                 s['step'] = 'filter_and_followup'
                 return self._filter_and_followup()
             s['ml_symptom'] = ranked[0]['symptom']
-            prob = ranked[0]['probability']
-            return {
-                "response": f"Do you also have {s['ml_symptom']}? (Yes/No) [Confidence: {prob*100:.1f}%]",
-                "options": ["Yes", "No"]
-            }
+            return {"response": f"Do you also have {s['ml_symptom']}? (Yes/No)", "options": ["Yes", "No"]}
         if s['step'] == 'ml_symptom_loop':
             # Handle ML symptom answer
             if s['ml_symptom']:
@@ -311,11 +307,7 @@ class TerminalStyleWebChatbot:
                 s['step'] = 'filter_and_followup'
                 return self._filter_and_followup()
             s['ml_symptom'] = ranked[0]['symptom']
-            prob = ranked[0]['probability']
-            return {
-                "response": f"Do you also have {s['ml_symptom']}? (Yes/No) [Confidence: {prob*100:.1f}%]",
-                "options": ["Yes", "No"]
-            }
+            return {"response": f"Do you also have {s['ml_symptom']}? (Yes/No)", "options": ["Yes", "No"]}
         if s['step'] == 'filter_and_followup':
             return self._filter_and_followup()
         if s['step'] == 'followup_loop':
@@ -604,8 +596,7 @@ class TerminalStyleWebChatbot:
             s['step'] = 'filter_and_followup'
             return self._filter_and_followup()
         s['ml_symptom'] = ranked[0]['symptom']
-        prob = ranked[0]['probability']
-        return f"Do you also have {s['ml_symptom']}? (Yes/No) [Confidence: {prob*100:.1f}%]"
+        return {"response": f"Do you also have {s['ml_symptom']}? (Yes/No)", "options": ["Yes", "No"]}
 
     def _followup_prompt(self):
         s = self.state
