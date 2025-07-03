@@ -2,6 +2,7 @@ import pandas as pd
 from symptom_predictor import SymptomPredictor, SYMPTOMS
 import threading
 import re
+import difflib
 
 DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
@@ -445,7 +446,11 @@ class TerminalStyleWebChatbot:
                     return "Sorry, no matching profile found. Please consult a doctor."
             return self._followup_prompt()
         if s['step'] == 'final_recommendation':
+            # After recommendation, expect medicine check
+            s['step'] = 'medicine_check'
             return self._final_recommendation()
+        if s.get('step') == 'medicine_check':
+            return self._medicine_check(user_input)
         if s['step'] == 'done':
             return "Sorry, no matching profile found. Please consult a doctor."
         print("[DEBUG] State at end:", s)
@@ -641,23 +646,82 @@ class TerminalStyleWebChatbot:
         s = self.state
         row = s['final_row']
         rec = row["OTC/Doc"] if "OTC/Doc" in row else row["Otc/Doc"]
-        s['step'] = 'done'
-
+        # If recommendation is consult doctor, stop after showing recommendation
+        if 'consult doctor' in rec.lower():
+            s['step'] = 'done'
+            return f"Based on your profile and symptoms:\n→ Recommendation: {rec}"
         # Partial matching for all medicines (case-insensitive)
         matched_medicines = []
         rec_lower = rec.lower()
         for med in MEDICINE_LIST:
             med_norm = med.strip().lower()
             if any(part.strip().lower() in rec_lower for part in med.lower().split(',')):
-                # Avoid duplicates (case-insensitive)
                 if not any(m.strip().lower() == med_norm for m in matched_medicines):
                     matched_medicines.append(med)
-        # Filter out medicines that are substrings of longer ones (case-insensitive)
         if matched_medicines:
             filtered_meds = filter_longest_medicines(matched_medicines)
             med_str = ', '.join(filtered_meds)
-            rec += f"\n\nDo you want to dispense {med_str}?"
-        return f"Based on your profile and symptoms:\n→ Recommendation: {rec}"
+            s['recommended_medicine'] = med_str
+        else:
+            s['recommended_medicine'] = ''
+        # Set step to medicine_check for next user input
+        s['step'] = 'medicine_check'
+        return f"Based on your profile and symptoms:\n→ Recommendation: {rec}\n\nHave you taken any other medicine during these days? If yes, please tell me which medicine. If not, type 'no'."
+
+    def _medicine_check(self, user_input):
+        s = self.state
+        recommended = s.get('recommended_medicine', '').lower()
+        user_input = user_input.strip().lower()
+        # Acceptable 'no' responses
+        no_responses = {'no', 'none', 'nothing', 'not taken', 'did not take', 'haven\'t taken', 'haven\'t', 'didn\'t', 'nil'}
+        # If user says no
+        if any(word in user_input for word in no_responses):
+            s['step'] = 'dispense_prompt'
+            return {"response": "Do you want to dispense the medicine?", "options": ["Yes", "No"]}
+        # Split user input by common delimiters to handle multiple medicines
+        user_meds = re.split(r'[,&;]| and | with | plus ', user_input)
+        user_meds = [m.strip() for m in user_meds if m.strip()]
+        # Check if any user medicine matches recommended
+        for med in user_meds:
+            if self.matches_recommended_medicine(med, recommended):
+                s['step'] = 'dispense_prompt'
+                return {"response": "Do you want to dispense the medicine?", "options": ["Yes", "No"]}
+        # If none match, treat as different
+        s['step'] = 'done'
+        return "You have taken a different medicine, so it is better you consult the doctor"
+
+    def matches_recommended_medicine(self, user_input, recommended_medicine):
+        # Normalize
+        user_input = user_input.lower().strip()
+        recommended_medicine = recommended_medicine.lower().strip()
+        # Remove dosage for comparison
+        user_base = re.sub(r'\b\d+\s*mg\b', '', user_input)
+        rec_base = re.sub(r'\b\d+\s*mg\b', '', recommended_medicine)
+        user_base = re.sub(r'[^a-z0-9 ]', '', user_base)
+        rec_base = re.sub(r'[^a-z0-9 ]', '', rec_base)
+        # Fuzzy match threshold
+        threshold = 0.7
+        # Direct substring or fuzzy match
+        if user_base in rec_base or rec_base in user_base:
+            return True
+        # Brand-generic mappings
+        MEDICINE_MAPPINGS = {
+            'paracetamol': ['crocin', 'dolo', 'tylenol', 'fever medicine'],
+            'cetirizine': ['cetrizine', 'zyrtec', 'allegra-like'],
+            'pantoprazole': ['acidity medicine', 'proton pump inhibitor'],
+            'gelusil': ['antacid', 'acidity tablet'],
+        }
+        # Check mapping
+        for generic, brands in MEDICINE_MAPPINGS.items():
+            if generic in rec_base:
+                for b in brands + [generic]:
+                    if b in user_base or user_base in b:
+                        return True
+        # Fuzzy match
+        ratio = difflib.SequenceMatcher(None, user_base, rec_base).ratio()
+        if ratio >= threshold:
+            return True
+        return False
 
     def get_greeting(self):
         return "Welcome to SmartMed AI Terminal.\nWhat is your age (in years)?"
