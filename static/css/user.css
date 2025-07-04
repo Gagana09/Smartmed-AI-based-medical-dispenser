@@ -239,3 +239,45 @@ header .logo p {
 @keyframes blink {
   to { visibility: hidden; }
 }
+
+/* Medicine Dispensing Toggle Styles */
+.toggle-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: flex-start;
+  margin-top: 16px;
+}
+
+.toggle-btn {
+  background: #f5f7fa;
+  border: 2px solid #007bff;
+  border-radius: 24px;
+  padding: 12px 24px;
+  font-size: 1rem;
+  color: #007bff;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+  margin-bottom: 8px;
+  white-space: normal;
+  max-width: 220px;
+  text-align: center;
+  box-shadow: 0 1px 4px rgba(112,146,155,0.07);
+}
+
+.toggle-btn.selected,
+.toggle-btn:active {
+  background: #007bff;
+  color: #fff;
+}
+
+@media (max-width: 600px) {
+  .toggle-btn {
+    font-size: 0.95rem;
+    padding: 10px 12px;
+    max-width: 100%;
+  }
+  .toggle-options {
+    gap: 8px;
+  }
+}

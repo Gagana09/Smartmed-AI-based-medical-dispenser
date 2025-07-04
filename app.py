@@ -212,6 +212,15 @@ def chat():
             'timestamp': timestamp,
             'medicine': matched_medicines if matched_medicines else None
         }
+        # Add dispensed medicine selection
+        dispensed_medicine = bot_instance.state.get('dispense_selection', None)
+        if dispensed_medicine:
+            chat_entry['dispensed_medicine'] = dispensed_medicine
+        # Add follow-up answers
+        followup_answers = bot_instance.state.get('followup_answers', {})
+        if followup_answers:
+            chat_entry['followup_answers'] = followup_answers
+
         users_collection.update_one(
             {'username': username},
             {'$push': {'chat_history': chat_entry}},

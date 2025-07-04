@@ -4,7 +4,7 @@ import threading
 import re
 import difflib
 
-DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -451,6 +451,18 @@ class TerminalStyleWebChatbot:
             return self._final_recommendation()
         if s.get('step') == 'medicine_check':
             return self._medicine_check(user_input)
+        if s.get('step') == 'dispense_prompt':
+            # Handle dispensing toggles
+            return self._dispense_options(user_input)
+        if s.get('step') == 'dispense_confirm':
+            # Confirm dispensing selection
+            selection = s.get('dispense_selection', None)
+            if selection:
+                s['step'] = 'done'
+                return f"Thank you for selecting {selection}. Your selection has been recorded."
+            else:
+                s['step'] = 'done'
+                return "Thank you. Your selection has been recorded."
         if s['step'] == 'done':
             return "Sorry, no matching profile found. Please consult a doctor."
         print("[DEBUG] State at end:", s)
@@ -662,11 +674,13 @@ class TerminalStyleWebChatbot:
             filtered_meds = filter_longest_medicines(matched_medicines)
             med_str = ', '.join(filtered_meds)
             s['recommended_medicine'] = med_str
+            # Set step to medicine_check for next user input
+            s['step'] = 'medicine_check'
+            return f"Based on your profile and symptoms:\n→ Recommendation: {rec}\n\nHave you taken any other medicine during these days? If yes, please tell me which medicine. If not, type 'no'."
         else:
             s['recommended_medicine'] = ''
-        # Set step to medicine_check for next user input
-        s['step'] = 'medicine_check'
-        return f"Based on your profile and symptoms:\n→ Recommendation: {rec}\n\nHave you taken any other medicine during these days? If yes, please tell me which medicine. If not, type 'no'."
+            s['step'] = 'done'
+            return f"Based on your profile and symptoms:\n→ Recommendation: {rec}"
 
     def _medicine_check(self, user_input):
         s = self.state
@@ -675,20 +689,30 @@ class TerminalStyleWebChatbot:
         # Acceptable 'no' responses
         no_responses = {'no', 'none', 'nothing', 'not taken', 'did not take', 'haven\'t taken', 'haven\'t', 'didn\'t', 'nil'}
         # If user says no
-        if any(word in user_input for word in no_responses):
+        if any(word == user_input for word in no_responses):
             s['step'] = 'dispense_prompt'
-            return {"response": "Do you want to dispense the medicine?", "options": ["Yes", "No"]}
+            s.pop('dispense_options', None)
+            return self._dispense_options('')
         # Split user input by common delimiters to handle multiple medicines
         user_meds = re.split(r'[,&;]| and | with | plus ', user_input)
         user_meds = [m.strip() for m in user_meds if m.strip()]
         # Check if any user medicine matches recommended
+        rec_meds = [m.strip().lower() for m in s.get('recommended_medicine', '').split(',') if m.strip()]
+        matched = False
         for med in user_meds:
-            if self.matches_recommended_medicine(med, recommended):
-                s['step'] = 'dispense_prompt'
-                return {"response": "Do you want to dispense the medicine?", "options": ["Yes", "No"]}
-        # If none match, treat as different
-        s['step'] = 'done'
-        return "You have taken a different medicine, so it is better you consult the doctor"
+            for rec in rec_meds:
+                if self.matches_recommended_medicine(med, rec):
+                    matched = True
+                    break
+            if matched:
+                break
+        if matched:
+            s['step'] = 'dispense_prompt'
+            s.pop('dispense_options', None)
+            return self._dispense_options('')
+        else:
+            s['step'] = 'done'
+            return "It is better that you consult the doctor since you've already taken a different medicine."
 
     def matches_recommended_medicine(self, user_input, recommended_medicine):
         # Normalize
@@ -759,3 +783,53 @@ class TerminalStyleWebChatbot:
                 if int(parts[0]) <= age <= int(parts[1]):
                     matches.append(bucket)
         return matches 
+
+    def _dispense_options(self, user_input):
+        s = self.state
+        # If this is the first entry to this step, present toggles
+        if 'dispense_options' not in s:
+            # Parse recommended medicines
+            rec_meds = [m.strip() for m in s.get('recommended_medicine', '').split(',') if m.strip()]
+            options = []
+            if len(rec_meds) == 1:
+                options = [rec_meds[0], "No, I don't want to dispense any medicine"]
+            elif len(rec_meds) == 2:
+                a, b = rec_meds
+                options = [f"{a} only", f"{b} only", f"Both {a} and {b}", "No, I don't want to dispense any medicine"]
+            elif len(rec_meds) >= 3:
+                from itertools import combinations
+                meds = rec_meds
+                # Individual
+                for m in meds:
+                    options.append(f"{m} only")
+                # All pairs
+                for comb in combinations(meds, 2):
+                    options.append(f"{' and '.join(comb)}")
+                # All
+                options.append(f"All {' and '.join(meds)}" if len(meds) == 3 else f"All {' and '.join(meds)}")
+                options.append("No, I don't want to dispense any medicine")
+            s['dispense_options'] = options
+            s['step'] = 'dispense_prompt'
+            return {"response": "Do you want to dispense the medicine?", "options": options}
+        # Otherwise, process user selection
+        selection = user_input.strip()
+        valid = False
+        for opt in s['dispense_options']:
+            if selection.lower() == opt.lower():
+                valid = True
+                s['dispense_selection'] = opt
+                break
+        if not valid:
+            # Try to match by index if user enters a number
+            try:
+                idx = int(selection) - 1
+                if 0 <= idx < len(s['dispense_options']):
+                    s['dispense_selection'] = s['dispense_options'][idx]
+                    valid = True
+            except:
+                pass
+        if valid:
+            s['step'] = 'dispense_confirm'
+            return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
+        else:
+            return {"response": "Please select a valid option:", "options": s['dispense_options']} 
