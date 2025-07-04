@@ -760,12 +760,13 @@ class TerminalStyleWebChatbot:
             except:
                 pass
         if valid:
-            # Print 'y' for medicine, 'n' for no medicine
+            # If user selects 'No', print 'n' and finish
             if s['dispense_selection'].lower().startswith('no, i don'):
                 print('n')
+                s['step'] = 'dispense_confirm'
+                return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
             else:
-                print('y')
-            s['step'] = 'dispense_confirm'
-            return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
+                # Redirect to payment gateway for medicine
+                return {'redirect': f"/medicine_gateway?medicine={s['dispense_selection']}"}
         else:
             return {"response": "Please select a valid option:", "options": s['dispense_options']}

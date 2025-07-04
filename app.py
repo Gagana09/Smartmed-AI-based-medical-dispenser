@@ -224,7 +224,20 @@ def chat():
             {'$push': {'chat_history': chat_entry}},
             upsert=True
         )
+    # --- FIX: handle redirect dicts ---
+    if isinstance(response, dict) and 'redirect' in response:
+        return jsonify(response)
     return jsonify({'response': response})
+
+@app.route('/medicine_gateway', methods=['GET', 'POST'])
+def medicine_gateway():
+    if request.method == 'POST':
+        # Simulate payment and dispensing
+        print('y')  # Print y to terminal for payment
+        return jsonify({'success': True, 'message': 'Your payment successful .. medicine is dispensing'})
+    # Render the payment gateway page
+    medicine = request.args.get('medicine', '')
+    return render_template('medicine_gateway.html', medicine=medicine)
 
 if __name__ == "__main__":
     import signal

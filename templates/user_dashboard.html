@@ -122,6 +122,12 @@
                     
                     console.log('Server response:', data); // Debug log
                     
+                    // Handle redirect for payment gateway
+                    if (data && data.redirect) {
+                        window.location.href = data.redirect;
+                        return;
+                    }
+                    
                     // Fixed response handling logic
                     let botMsg = null;
                     let options = null;

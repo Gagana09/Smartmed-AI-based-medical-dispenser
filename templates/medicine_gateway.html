@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Medicine Payment Gateway - SmartMed AI</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/user.css') }}">
+</head>
+<body>
+    <header>
+        <div class="logo">
+            <h1>SmartMed AI</h1>
+            <p>Your Smart Medical Dispenser & Assistant</p>
+        </div>
+        <nav>
+            <ul>
+                <li><a href="{{ url_for('logout') }}">Logout</a></li>
+            </ul>
+        </nav>
+    </header>
+    <main>
+        <div class="overlay">
+            <section class="result">
+                <h2>Medicine Payment Gateway</h2>
+                <p>Selected Medicine: <strong>{{ medicine }}</strong></p>
+                <form id="pay-form" method="POST">
+                    <button type="submit" class="btn">Pay Now</button>
+                </form>
+                <div id="payment-message" style="margin-top:20px;"></div>
+            </section>
+        </div>
+    </main>
+    <footer>
+        <p>&copy; 2025 SmartMed AI</p>
+    </footer>
+    <script>
+        document.getElementById('pay-form').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            const btn = this.querySelector('button');
+            btn.disabled = true;
+            btn.textContent = 'Processing...';
+            const resp = await fetch(window.location.pathname + window.location.search, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            const data = await resp.json();
+            if (data.success) {
+                document.getElementById('payment-message').textContent = data.message;
+            } else {
+                document.getElementById('payment-message').textContent = 'Payment failed. Please try again.';
+            }
+            btn.style.display = 'none';
+        });
+    </script>
+</body>
+</html> 
