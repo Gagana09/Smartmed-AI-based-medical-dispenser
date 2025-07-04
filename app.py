@@ -90,9 +90,48 @@ def register():
         return redirect(url_for('login'))
     return render_template('register.html')
 
+# --- Admin endpoints for medicine inventory ---
+@app.route('/admin/medicines', methods=['GET'])
+def get_medicines():
+    medicines = list(db.medicines.find({}, {'_id': 0}))
+    return jsonify(medicines)
+
+@app.route('/admin/medicines/update', methods=['POST'])
+def update_medicine_quantity():
+    data = request.json
+    name = data['name']
+    change = int(data['change'])  # +1 or -1
+    db.medicines.update_one({'name': name}, {'$inc': {'quantity': change}})
+    med = db.medicines.find_one({'name': name}, {'_id': 0})
+    return jsonify(med)
+
+# --- Update admin_dashboard to pass medicines to template ---
 @app.route('/admin_dashboard')
 def admin_dashboard():
-    return render_template('admin_dashboard.html')
+    # Only allow admin
+    if session.get('user', {}).get('role') != 'admin':
+        return redirect(url_for('login'))
+    medicines = list(db.medicines.find({}, {'_id': 0}))
+    # Build user info: username, list of chat sessions (date, symptoms, dispensed)
+    users = []
+    for user_doc in db.users.find({}, {'username': 1, 'chat_history': 1}):
+        username = user_doc.get('username', 'Unknown')
+        sessions = []
+        for chat in user_doc.get('chat_history', []):
+            # Use the 'symptoms' field for actual symptoms marked Yes
+            symptoms = chat.get('symptoms', [])
+            dispensed = chat.get('dispensed_medicine') or chat.get('medicine') or None
+            date = chat.get('timestamp', 'NA')
+            sessions.append({
+                'date': date,
+                'symptoms': symptoms,
+                'dispensed': dispensed if dispensed else 'NA'
+            })
+        users.append({
+            'username': username,
+            'sessions': sessions[::-1]  # most recent first
+        })
+    return render_template('admin_dashboard.html', medicines=medicines, users=users)
 
 @app.route('/user_dashboard')
 def user_dashboard():
@@ -235,6 +274,7 @@ def chat():
         return jsonify(response)
     return jsonify({'response': response})
 
+# --- Decrement quantity on dispense ---
 @app.route('/medicine_gateway', methods=['GET', 'POST'])
 def medicine_gateway():
     if request.method == 'POST':
@@ -244,6 +284,20 @@ def medicine_gateway():
         from datetime import datetime
         india_tz = pytz.timezone('Asia/Kolkata')
         now = datetime.now(india_tz).isoformat()
+        # Decrement quantity for each medicine dispensed
+        # Handle combinations like 'Both A and B', 'A only', 'All A and B and C'
+        import re
+        med_names = []
+        if medicine.lower().startswith('both '):
+            med_names = [m.strip() for m in medicine[5:].split(' and ')]
+        elif medicine.lower().startswith('all '):
+            med_names = [m.strip() for m in medicine[4:].split(' and ')]
+        elif medicine.lower().endswith(' only'):
+            med_names = [medicine[:-5].strip()]
+        else:
+            med_names = [medicine.strip()]
+        for med in med_names:
+            db.medicines.update_one({'name': med}, {'$inc': {'quantity': -1}})
         # Use aggregation pipeline to update last chat_history entry
         users_collection.update_one(
             {'username': username, 'chat_history': {'$exists': True, '$ne': []}},

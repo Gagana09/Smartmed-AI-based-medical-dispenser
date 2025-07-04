@@ -5,6 +5,92 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Admin Dashboard - SmartMed AI</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+    body {
+      background: url("../static/images/background3.jpg") no-repeat center center fixed;
+      background-size: cover;
+    }
+    .dashboard-container {
+      display: flex;
+      flex-direction: row;
+      gap: 32px;
+      justify-content: flex-start;
+      align-items: flex-start;
+      padding: 32px 24px;
+      min-height: 80vh;
+    }
+    .medicine-panel {
+      background: rgba(255,255,255,0.92);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      width: 320px;
+      min-width: 220px;
+      max-height: 70vh;
+      overflow-y: auto;
+      padding: 18px 12px 18px 18px;
+    }
+    .user-panel {
+      background: rgba(255,255,255,0.92);
+      border-radius: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      flex: 1;
+      padding: 18px 24px;
+      min-width: 320px;
+      max-width: 700px;
+      overflow-y: auto;
+    }
+    #medicine-table {
+      width: 100%;
+      border-collapse: collapse;
+      background: #fff;
+      color: #111;
+    }
+    #medicine-table th, #medicine-table td {
+      padding: 8px;
+      border-bottom: 1px solid #ccc;
+      text-align: left;
+    }
+    #medicine-table th {
+      background: #f7f7f7;
+      font-weight: bold;
+    }
+    .inc-btn, .dec-btn {
+      padding: 4px 10px;
+      margin: 0 2px;
+      background: #f7f7f7;
+      border: 1px solid #bbb;
+      border-radius: 6px;
+      color: #111;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .inc-btn:hover, .dec-btn:hover {
+      background: #e0e0e0;
+    }
+    .user-card {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+      margin-bottom: 18px;
+      padding: 16px 18px;
+      color: #111;
+      opacity: 0.97;
+    }
+    .user-card h4 {
+      margin: 0 0 8px 0;
+      font-size: 1.1em;
+      color: #222;
+    }
+    .user-card .symptoms {
+      font-size: 0.98em;
+      margin-bottom: 6px;
+    }
+    .user-card .dispensed {
+      font-size: 0.98em;
+      color: #007bff;
+    }
+    </style>
 </head>
 <body>
 
@@ -16,36 +102,87 @@
     </header>
 
     <main>
-        <section>
-            <h2>User Symptom Submissions</h2>
-            {% if submissions %}
-                <table>
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Symptoms</th>
-                            <th>Recommended Medicine</th>
-                            <th>Date Submitted</th>
-                            <th>Status</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for submission in submissions %}
-                        <tr>
-                            <td>{{ submission.username }}</td>
-                            <td>{{ submission.symptoms }}</td>
-                            <td>{{ submission.medicine }}</td>
-                            <td>{{ submission.timestamp }}</td>
-                            <td>{{ submission.status }}</td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            {% else %}
-                <p>No submissions yet.</p>
-            {% endif %}
+      <div class="dashboard-container">
+        <section class="medicine-panel">
+          <h2 style="margin-top:0;">Medicine Inventory</h2>
+          <table id="medicine-table">
+            <thead>
+              <tr>
+                <th>Medicine Name</th>
+                <th>Qty</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for med in medicines %}
+              <tr data-name="{{ med.name }}">
+                <td>{{ med.name }}</td>
+                <td class="quantity">{{ med.quantity }}</td>
+                <td>
+                  <button class="inc-btn">+</button>
+                  <button class="dec-btn">-</button>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
         </section>
+        <section class="user-panel">
+          <h2 style="margin-top:0;">User Info</h2>
+          {% for user in users %}
+          <div class="user-card">
+            <h4>{{ user.username }}</h4>
+            {% if user.sessions %}
+              <ul style="padding-left:0;list-style:none;">
+                {% for session in user.sessions %}
+                <li style="margin-bottom:12px;">
+                  <div><strong>Date:</strong> {{ session.date }}</div>
+                  <div class="symptoms"><strong>Symptoms (Yes):</strong> {{ session.symptoms|join(', ') if session.symptoms else 'None' }}</div>
+                  <div class="dispensed"><strong>Medicine Dispensed:</strong> {{ session.dispensed }}</div>
+                </li>
+                {% endfor %}
+              </ul>
+            {% else %}
+              <div>No history available.</div>
+            {% endif %}
+          </div>
+          {% else %}
+          <div class="user-card">No user data available.</div>
+          {% endfor %}
+        </section>
+      </div>
     </main>
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+        function updateQuantity(name, change, row) {
+            fetch('/admin/medicines/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, change: change })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data && typeof data.quantity !== 'undefined') {
+                    row.querySelector('.quantity').textContent = data.quantity;
+                }
+            });
+        }
+        document.querySelectorAll('.inc-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const name = row.getAttribute('data-name');
+                updateQuantity(name, 1, row);
+            });
+        });
+        document.querySelectorAll('.dec-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const name = row.getAttribute('data-name');
+                updateQuantity(name, -1, row);
+            });
+        });
+    });
+    </script>
 
     <footer>
         <p>&copy; 2025 SmartMed AI</p>
