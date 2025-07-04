@@ -4,7 +4,7 @@ import threading
 import re
 import difflib
 
-DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -761,12 +761,13 @@ class TerminalStyleWebChatbot:
                 options.append("No, I don't want to dispense any medicine")
             s['dispense_options'] = options
             s['step'] = 'dispense_prompt'
-            return {"response": "Do you want to dispense the medicine?", "options": options}
+            return {"response": "Do you want to dispense the medicine?", "options": options, "type": "medicine"}
         # Otherwise, process user selection
         selection = user_input.strip()
         valid = False
+        # Accept both the 'no' button and 'n' as valid for 'no'
         for opt in s['dispense_options']:
-            if selection.lower() == opt.lower():
+            if selection.lower() == opt.lower() or (selection.lower() == 'n' and "no, i don't want to dispense any medicine" in opt.lower()):
                 s['dispense_selection'] = opt
                 valid = True
                 break
@@ -781,12 +782,13 @@ class TerminalStyleWebChatbot:
                 pass
         if valid:
             # If user selects 'No', print 'n' and finish
-            if s['dispense_selection'].lower().startswith('no, i don'):
+            if s['dispense_selection'].lower().startswith('no, i don') or selection.lower() == 'n':
                 print('n')
                 s['step'] = 'done'
                 return 'OK, thank you. Take care.'
             else:
-                # Redirect to payment gateway for medicine
+                # Print 'y' for successful medicine dispense (after payment/redirect)
+                print('y')
                 return {'redirect': f"/medicine_gateway?medicine={s['dispense_selection']}"}
         else:
-            return {"response": "Please select a valid option:", "options": s['dispense_options']}
+            return {"response": "Please select a valid option:", "options": s['dispense_options'], "type": "medicine"}

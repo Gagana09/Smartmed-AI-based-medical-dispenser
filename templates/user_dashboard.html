@@ -131,17 +131,50 @@
             function renderOptions(options) {
                 clearOptions();
                 const chatForm = document.getElementById('chat-form');
-                options.forEach(option => {
-                    const btn = document.createElement('button');
-                    btn.type = 'button';
-                    btn.className = 'option-btn btn';
-                    btn.textContent = option;
-                    btn.onclick = async function() {
-                        chatInput.value = option;
-                        chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
-                    };
-                    chatForm.appendChild(btn);
-                });
+                const chatInput = document.getElementById('chat-input');
+                // Remove any previous group
+                let group = document.querySelector('.medicine-btn-group');
+                if (group) group.remove();
+
+                // Heuristic: if options look like medicine dispensing, use medicine button style
+                const isMedicine = options.some(opt => /dispense|only|No, I don't want to dispense any medicine/i.test(opt));
+                if (isMedicine) {
+                    chatInput.style.display = "none";
+                    group = document.createElement('div');
+                    group.className = 'medicine-btn-group';
+                    options.forEach(option => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'medicine-btn';
+                        btn.textContent = option;
+                        btn.onclick = function() {
+                            if (group) group.remove();
+                            if (option.toLowerCase().includes("no, i don't want to dispense any medicine")) {
+                                chatInput.value = 'n';
+                                chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                            } else {
+                                chatInput.value = option;
+                                chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                            }
+                        };
+                        group.appendChild(btn);
+                    });
+                    chatForm.appendChild(group);
+                } else {
+                    chatInput.style.display = "";
+                    options.forEach(option => {
+                        const btn = document.createElement('button');
+                        btn.type = 'button';
+                        btn.className = 'option-btn btn';
+                        btn.textContent = option;
+                        btn.onclick = function() {
+                            clearOptions();
+                            chatInput.value = option;
+                            chatForm.dispatchEvent(new Event('submit', { cancelable: true }));
+                        };
+                        chatForm.appendChild(btn);
+                    });
+                }
             }
 
             function clearOptions() {

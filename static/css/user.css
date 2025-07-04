@@ -285,13 +285,32 @@ color: #fff;
 /* Medicine Button Group - horizontal layout */
 .medicine-btn-group {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: row;
+  flex-wrap: nowrap;
   gap: 8px;
   justify-content: flex-start;
   margin-top: 10px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0;
+  background: transparent;
+  scrollbar-width: thin;
+  scrollbar-color: #70929b #f8f9fa;
+}
+.medicine-btn-group::-webkit-scrollbar {
+  height: 8px;
+}
+.medicine-btn-group::-webkit-scrollbar-thumb {
+  background: #70929b;
+  border-radius: 4px;
+}
+.medicine-btn-group::-webkit-scrollbar-track {
+  background: #f8f9fa;
+  border-radius: 4px;
 }
 
-/* Small, neat medicine button style */
 .medicine-btn {
   background: #e3f0f7;
   border: 1.5px solid #70929b;
@@ -300,16 +319,27 @@ color: #fff;
   font-size: 0.95rem;
   color: #2a5d7c;
   cursor: pointer;
-  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s, transform 0.15s;
   margin-bottom: 0;
   white-space: nowrap;
   box-shadow: 0 1px 3px rgba(112,146,155,0.07);
   font-family: inherit;
+  height: 35px;
+  min-width: unset;
+  max-width: unset;
+  width: auto;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
 }
 .medicine-btn:hover, .medicine-btn.selected {
   background: #70929b;
   color: #fff;
   border-color: #5a7b83;
+  transform: translateY(-3px);
+  z-index: 3;
 }
 
 /* Optionally, make .toggle-btn smaller and neater for medicine use */
