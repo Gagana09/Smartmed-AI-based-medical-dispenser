@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import pandas as pd
 from terminal_web_chatbot import TerminalStyleWebChatbot
 import datetime
+import pytz
 
 # Load environment variables from .env (only GROQ_API_KEY expected)
 load_dotenv()
@@ -232,10 +233,38 @@ def chat():
 @app.route('/medicine_gateway', methods=['GET', 'POST'])
 def medicine_gateway():
     if request.method == 'POST':
-        # Simulate payment and dispensing
-        print('y')  # Print y to terminal for payment
-        return jsonify({'success': True, 'message': 'Your payment successful .. medicine is dispensing'})
-    # Render the payment gateway page
+        username = session.get('username')
+        medicine = request.args.get('medicine', '')
+        # Use Indian timezone for payment_time
+        from datetime import datetime
+        india_tz = pytz.timezone('Asia/Kolkata')
+        now = datetime.now(india_tz).isoformat()
+        # Use aggregation pipeline to update last chat_history entry
+        users_collection.update_one(
+            {'username': username, 'chat_history': {'$exists': True, '$ne': []}},
+            [
+                {
+                    '$set': {
+                        'chat_history': {
+                            '$concatArrays': [
+                                {'$slice': ['$chat_history', {'$subtract': [{'$size': '$chat_history'}, 1]}]},
+                                [{
+                                    '$mergeObjects': [
+                                        {'$arrayElemAt': ['$chat_history', {'$subtract': [{'$size': '$chat_history'}, 1]}]},
+                                        {
+                                            'payment_status': 'success',
+                                            'payment_time': now,
+                                            'dispensed_medicine': medicine
+                                        }
+                                    ]
+                                }]
+                            ]
+                        }
+                    }
+                }
+            ]
+        )
+        return jsonify({'success': True, 'message': f'Your payment for {medicine} was successful. Medicine is dispensing.'})
     medicine = request.args.get('medicine', '')
     return render_template('medicine_gateway.html', medicine=medicine)
 
