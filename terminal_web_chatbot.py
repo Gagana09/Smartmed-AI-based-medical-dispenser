@@ -783,8 +783,8 @@ class TerminalStyleWebChatbot:
             # If user selects 'No', print 'n' and finish
             if s['dispense_selection'].lower().startswith('no, i don'):
                 print('n')
-                s['step'] = 'dispense_confirm'
-                return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
+                s['step'] = 'done'
+                return 'OK, thank you. Take care.'
             else:
                 # Redirect to payment gateway for medicine
                 return {'redirect': f"/medicine_gateway?medicine={s['dispense_selection']}"}

@@ -81,10 +81,7 @@ def register():
         db.users.insert_one({
             'username': username,
             'email': email,
-            'password': generate_password_hash(password),
-            'chatbot_state': {},
-            'symptoms_history': [],
-            'recommendations_history': []
+            'password': generate_password_hash(password)
         })
         flash("Registration successful. Please login.", 'success')
         return redirect(url_for('login'))
@@ -213,18 +210,21 @@ def chat():
     response = bot_instance.get_response(user_input)
     # Always update session state after processing
     session['chatbot_state'] = bot_instance.get_serializable_state()
-    # Only store in MongoDB if chat is done
+    # Only store in MongoDB if chat is done or if a payment redirect is returned
+    should_save = False
     if bot_instance.state.get('step') == 'done':
-        # Extract info for chat history
+        should_save = True
+    if isinstance(response, dict) and 'redirect' in response:
+        should_save = True
+    if should_save:
         user_flags = bot_instance.state.get('user_flags', {})
         symptoms_yes = [k for k, v in user_flags.items() if v.strip().lower() == 'yes']
         all_symptoms = list(user_flags.keys())
-        recommendation = response
+        recommendation = response if isinstance(response, str) else ''
+        now = datetime.datetime.utcnow()
         timestamp = now.isoformat()
-
-        # Medicine extraction logic (must match terminal_web_chatbot.py)
         matched_medicines = []
-        rec_lower = recommendation.lower()
+        rec_lower = recommendation.lower() if isinstance(recommendation, str) else ''
         for med in [
             'Paracetamol 500mg', 'Limcee 500mg', 'ORS', 'Zincovit syrup', 'Zincovit tablet',
             'Benadryl Dry Cough syrup', 'Honey-ginger lozenges', 'Mucosolvan cough syrup',
@@ -247,29 +247,27 @@ def chat():
                     matched_medicines.append(med)
         if matched_medicines:
             matched_medicines = filter_longest_medicines(matched_medicines)
-
         chat_entry = {
             'symptoms': symptoms_yes,
             'all_symptoms': all_symptoms,
-            'recommendation': recommendation,
+            'recommendation': recommendation if isinstance(recommendation, str) else '',
             'timestamp': timestamp,
             'medicine': matched_medicines if matched_medicines else None
         }
-        # Add dispensed medicine selection
         dispensed_medicine = bot_instance.state.get('dispense_selection', None)
         if dispensed_medicine:
-            chat_entry['dispensed_medicine'] = dispensed_medicine
-        # Add follow-up answers
+            if dispensed_medicine.lower().startswith("no, i don"):
+                chat_entry['dispensed_medicine'] = 'NA'
+            else:
+                chat_entry['dispensed_medicine'] = dispensed_medicine
         followup_answers = bot_instance.state.get('followup_answers', {})
         if followup_answers:
             chat_entry['followup_answers'] = followup_answers
-
         users_collection.update_one(
             {'username': username},
             {'$push': {'chat_history': chat_entry}},
             upsert=True
         )
-    # --- FIX: handle redirect dicts ---
     if isinstance(response, dict) and 'redirect' in response:
         return jsonify(response)
     return jsonify({'response': response})
