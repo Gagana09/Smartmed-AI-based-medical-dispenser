@@ -150,27 +150,32 @@ def chat():
         return jsonify({'response': bot_instance.get_greeting()})
     # Process user input
     user_input = request.json['message']
+    # Check chat history for last 2 days BEFORE processing user input
+    user_doc = users_collection.find_one({'username': username}, {'chat_history': 1})
+    now = datetime.datetime.utcnow()
+    two_days_ago = now - datetime.timedelta(days=2)
+    recent_chats = []
+    if user_doc and 'chat_history' in user_doc:
+        for entry in user_doc['chat_history']:
+            try:
+                ts = datetime.datetime.fromisoformat(entry.get('timestamp', ''))
+                if ts > two_days_ago:
+                    recent_chats.append(entry)
+            except Exception:
+                continue
+    # If this is the third or more chat in 2 days, block dispensing flow
+    if len(recent_chats) >= 2:
+        response = "Consult a doctor since you're falling sick frequently."
+        # Reset chatbot state to done so user can't continue
+        bot_instance.state['step'] = 'done'
+        session['chatbot_state'] = bot_instance.get_serializable_state()
+        return jsonify({'response': response})
+    # Otherwise, continue as normal
     response = bot_instance.get_response(user_input)
     # Always update session state after processing
     session['chatbot_state'] = bot_instance.get_serializable_state()
     # Only store in MongoDB if chat is done
     if bot_instance.state.get('step') == 'done':
-        # Check chat history for last 2 days
-        user_doc = users_collection.find_one({'username': username}, {'chat_history': 1})
-        now = datetime.datetime.utcnow()
-        two_days_ago = now - datetime.timedelta(days=2)
-        recent_chats = []
-        if user_doc and 'chat_history' in user_doc:
-            for entry in user_doc['chat_history']:
-                try:
-                    ts = datetime.datetime.fromisoformat(entry.get('timestamp', ''))
-                    if ts > two_days_ago:
-                        recent_chats.append(entry)
-                except Exception:
-                    continue
-        if len(recent_chats) >= 2:
-            response = "Consult a doctor since you're falling sick frequently."
-            return jsonify({'response': response})
         # Extract info for chat history
         user_flags = bot_instance.state.get('user_flags', {})
         symptoms_yes = [k for k, v in user_flags.items() if v.strip().lower() == 'yes']
