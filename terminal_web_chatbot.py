@@ -4,7 +4,7 @@ import threading
 import re
 import difflib
 
-DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -333,7 +333,12 @@ class TerminalStyleWebChatbot:
                                     s[f"current_followup_qcol"] = q_col
                                     s[f"current_row_index"] = idx
                                     q = str(row[q_col]).strip()
-                                    return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                                    norm_q = normalize_question(q)
+                                    for d in (FOLLOWUP_1_QUESTIONS, FOLLOWUP_2_QUESTIONS, FOLLOWUP_3_QUESTIONS):
+                                        for key in d:
+                                            if normalize_question(key) == norm_q:
+                                                return {"response": q, "options": d[key]}
+                                    return {"response": q, "options": ["Yes", "No"]}
                         if s['filter_df'] is not None and len(s['filter_df']) >= 1:
                             s['final_row'] = s['filter_df'].iloc[0]
                             s['step'] = 'final_recommendation'
@@ -356,7 +361,12 @@ class TerminalStyleWebChatbot:
                                     s[f"current_followup_qcol"] = q_col
                                     s[f"current_row_index"] = idx
                                     q = str(row[q_col]).strip()
-                                    return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                                    norm_q = normalize_question(q)
+                                    for d in (FOLLOWUP_1_QUESTIONS, FOLLOWUP_2_QUESTIONS, FOLLOWUP_3_QUESTIONS):
+                                        for key in d:
+                                            if normalize_question(key) == norm_q:
+                                                return {"response": q, "options": d[key]}
+                                    return {"response": q, "options": ["Yes", "No"]}
                         if s['filter_df'] is not None and len(s['filter_df']) >= 1:
                             s['final_row'] = s['filter_df'].iloc[0]
                             s['step'] = 'final_recommendation'
@@ -410,7 +420,12 @@ class TerminalStyleWebChatbot:
                             s[f"current_followup_col"] = a_col
                             s[f"current_followup_qcol"] = q_col
                             s[f"current_row_index"] = idx
-                            return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                            norm_q = normalize_question(q)
+                            for d in (FOLLOWUP_1_QUESTIONS, FOLLOWUP_2_QUESTIONS, FOLLOWUP_3_QUESTIONS):
+                                for key in d:
+                                    if normalize_question(key) == norm_q:
+                                        return {"response": q, "options": d[key]}
+                            return {"response": q, "options": ["Yes", "No"]}
                 # If no more follow-ups, always give the recommendation from the first row
                 if not found_next:
                     s['current_followup_col'] = None
@@ -575,7 +590,12 @@ class TerminalStyleWebChatbot:
                         s[f"current_followup_col"] = a_col
                         s[f"current_followup_qcol"] = q_col
                         s[f"current_row_index"] = idx
-                        return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                        norm_q = normalize_question(q)
+                        for d in (FOLLOWUP_1_QUESTIONS, FOLLOWUP_2_QUESTIONS, FOLLOWUP_3_QUESTIONS):
+                            for key in d:
+                                if normalize_question(key) == norm_q:
+                                    return {"response": q, "options": d[key]}
+                        return {"response": q, "options": ["Yes", "No"]}
         # If no more follow-ups found, proceed to recommendation
         if s['filter_df'] is not None and len(s['filter_df']) >= 1:
             s['final_row'] = s['filter_df'].iloc[0]
