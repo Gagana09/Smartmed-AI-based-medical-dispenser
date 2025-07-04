@@ -281,3 +281,41 @@ color: #fff;
   gap: 8px;
 }
 }
+
+/* Medicine Button Group - horizontal layout */
+.medicine-btn-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-start;
+  margin-top: 10px;
+}
+
+/* Small, neat medicine button style */
+.medicine-btn {
+  background: #e3f0f7;
+  border: 1.5px solid #70929b;
+  border-radius: 16px;
+  padding: 6px 14px;
+  font-size: 0.95rem;
+  color: #2a5d7c;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+  margin-bottom: 0;
+  white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(112,146,155,0.07);
+  font-family: inherit;
+}
+.medicine-btn:hover, .medicine-btn.selected {
+  background: #70929b;
+  color: #fff;
+  border-color: #5a7b83;
+}
+
+/* Optionally, make .toggle-btn smaller and neater for medicine use */
+.toggle-btn {
+  font-size: 0.95rem;
+  padding: 8px 16px;
+  border-radius: 16px;
+  max-width: 140px;
+}

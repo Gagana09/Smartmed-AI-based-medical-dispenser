@@ -760,6 +760,11 @@ class TerminalStyleWebChatbot:
             except:
                 pass
         if valid:
+            # Print 'y' for medicine, 'n' for no medicine
+            if s['dispense_selection'].lower().startswith('no, i don'):
+                print('n')
+            else:
+                print('y')
             s['step'] = 'dispense_confirm'
             return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
         else:
