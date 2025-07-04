@@ -21,6 +21,73 @@
     </header>
     <main>
         <div class="overlay">
+            <!-- Red Flag Disclaimer Modal -->
+            <style>
+            #red-flag-modal {
+              position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+              background: rgba(0,0,0,0.6); z-index: 1000; display: flex;
+              align-items: center; justify-content: center;
+            }
+            #red-flag-modal .modal-content {
+              background: #fff; padding: 32px 24px 80px 24px; border-radius: 12px;
+              max-width: 420px; width: 90vw; box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+              text-align: left; position: relative;
+              max-height: 90vh; overflow-y: auto;
+              display: flex; flex-direction: column;
+            }
+            #close-red-flag-modal {
+              position: sticky; bottom: 0; left: 0; right: 0;
+              display: block; width: 100%; margin: 0 auto; margin-top: 18px;
+              padding: 18px 0; font-size: 1.2rem; border-radius: 8px;
+              background: #b30000; color: #fff; border: none; font-weight: bold;
+              cursor: pointer; transition: background 0.2s;
+              z-index: 10;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+              letter-spacing: 0.5px;
+            }
+            #close-red-flag-modal:hover { background: #a00000; }
+            @media (max-width: 500px) {
+              #red-flag-modal .modal-content { padding: 18px 6px 70px 6px; }
+              #close-red-flag-modal { font-size: 1rem; padding: 14px 0; }
+            }
+            </style>
+            <div id="red-flag-modal">
+              <div class="modal-content">
+                <h2 style="color:#b30000;margin-top:0;">Important Disclaimer</h2>
+                <p style="color:#222;font-weight:500;">If you have any of these symptoms, please consult a doctor:</p>
+                <ul style="color:#b30000;font-weight:500;line-height:1.6;margin-bottom:18px;">
+                  <li>Severe chest pain or chest tightness</li>
+                  <li>Sudden onset of severe headache</li>
+                  <li>Shortness of breath or difficulty breathing</li>
+                  <li>Sudden dizziness or loss of consciousness</li>
+                  <li>Seizures or convulsions</li>
+                  <li>Persistent vomiting (especially with blood or bile)</li>
+                  <li>High fever (&gt;103°F or 39.5°C), especially with rash or neck stiffness</li>
+                  <li>Sudden weakness or numbness in face, arm, or leg (especially one side)</li>
+                  <li>Blood in stool or urine</li>
+                  <li>Severe abdominal pain (especially sudden or with vomiting)</li>
+                  <li>Unexplained weight loss</li>
+                  <li>Severe allergic reactions (anaphylaxis)</li>
+                  <li>Persistent cough &gt;2 weeks, especially with blood</li>
+                  <li>New onset confusion, slurred speech, or altered mental state</li>
+                  <li>Fainting or blacking out during physical exertion or emotional stress</li>
+                </ul>
+                <button id="close-red-flag-modal">I Understand</button>
+              </div>
+            </div>
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+              const modal = document.getElementById('red-flag-modal');
+              const closeBtn = document.getElementById('close-red-flag-modal');
+              const chatForm = document.getElementById('chat-form');
+              if (chatForm) chatForm.style.pointerEvents = 'none';
+              closeBtn.onclick = function() {
+                modal.style.display = 'none';
+                if (chatForm) chatForm.style.pointerEvents = '';
+              };
+            });
+            </script>
+            <!-- End Red Flag Modal -->
             <section class="chat-interface">
                 <div id="chat-box" class="chat-box">
                     <!-- Bot greeting will be loaded dynamically -->
