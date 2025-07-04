@@ -11,273 +11,273 @@
 
 /* Symptom Form Container */
 .symptom-form {
-    background-color: rgba(255, 255, 255, 0.9);
-    padding: 40px 30px;
-    border-radius: 12px;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
-    text-align: center;
-    width: 100%;
-    max-width: 500px;
+  background-color: rgba(255, 255, 255, 0.9);
+  padding: 40px 30px;
+  border-radius: 12px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.15);
+  text-align: center;
+  width: 100%;
+  max-width: 500px;
 }
 
 /* Label */
 .symptom-form label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 10px;
-    color: #333;
-    font-size: 1.1rem;
+  display: block;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 1.1rem;
 }
 
 
 html, body {
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    background: #181818;
-    color: #e0e0e0;
-    font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: #181818;
+  color: #e0e0e0;
+  font-family: 'Fira Mono', 'Consolas', 'Menlo', monospace;
 }
 
 /* Background image setup */
 body {
-    background: url("../images/background3.jpg") no-repeat center center fixed;
-    background-size: cover;
+  background: url("../images/background3.jpg") no-repeat center center fixed;
+  background-size: cover;
 }
 
 /* Main takes full height minus header/footer */
 main {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 40px 20px;
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 40px 20px;
 }
 
 /* Overlay Box (same as home/about style) */
 .overlay {
-    background-color: rgba(255, 255, 255, 0.85);
-    padding: 40px;
-    border-radius: 12px;
-    width: 100%;
-    max-width: 600px;
-    text-align: center;
-    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+  background-color: rgba(255, 255, 255, 0.85);
+  padding: 40px;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 600px;
+  text-align: center;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
 }
 
 /* Symptom form style */
 .symptom-form label {
-    display: block;
-    font-weight: bold;
-    margin-bottom: 10px;
-    color: #333;
-    font-size: 1.1rem;
+  display: block;
+  font-weight: bold;
+  margin-bottom: 10px;
+  color: #333;
+  font-size: 1.1rem;
 }
 
 .symptom-form textarea {
-    width: 100%;
-    padding: 12px;
-    font-size: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 8px;
-    margin-bottom: 20px;
-    resize: vertical;
+  width: 100%;
+  padding: 12px;
+  font-size: 1rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  resize: vertical;
 }
 
 /* Animated Submit Button */
 .symptom-form button {
-    background-color: #70929b;
-    color: white;
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 1.1rem;
-    font-weight: bold;
-    cursor: pointer;
-    width: 100%;
-    transition: background-color 0.3s ease, transform 0.2s ease;
+  background-color: #70929b;
+  color: white;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  font-weight: bold;
+  cursor: pointer;
+  width: 100%;
+  transition: background-color 0.3s ease, transform 0.2s ease;
 }
 
 .symptom-form button:hover {
-    background-color: #5a7b83;
-    transform: scale(1.05);
+  background-color: #5a7b83;
+  transform: scale(1.05);
 }
 
 /* Recommendation Output */
 .result {
-    margin-top: 30px;
-    text-align: center;
+  margin-top: 30px;
+  text-align: center;
 }
 
 .result h2 {
-    color: #70929b;
+  color: #70929b;
 }
 
 .result p {
-    font-size: 1.1rem;
-    color: #444;
+  font-size: 1.1rem;
+  color: #444;
 }
 
 /* Footer at bottom */
 footer {
-    background-color: #70929b;
-    color: white;
-    padding: 15px;
-    text-align: center;
-    margin-top: auto;
+  background-color: #70929b;
+  color: white;
+  padding: 15px;
+  text-align: center;
+  margin-top: auto;
 }
 /* Header Bar */
 header {
-    background-color: #70929b;
-    color: white;
-    padding: 20px;
-    text-align: center;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+  background-color: #70929b;
+  color: white;
+  padding: 20px;
+  text-align: center;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
 }
 
 header .logo h1 {
-    margin: 0;
-    font-size: 2.5em;
+  margin: 0;
+  font-size: 2.5em;
 }
 
 header .logo p {
-    margin: 5px 0 0;
-    font-weight: 300;
+  margin: 5px 0 0;
+  font-weight: 300;
 }
 
 /* Chat Interface Styles - Home Page Look */
 .chat-interface {
-  display: flex;
-  flex-direction: column;
-  height: 400px;
-  max-width: 600px;
-  margin: 0 auto;
+display: flex;
+flex-direction: column;
+height: 400px;
+max-width: 600px;
+margin: 0 auto;
 }
 
 .chat-box {
-  background: rgba(255,255,255,0.95);
-  color: #222;
-  font-family: 'Arial', sans-serif;
-  padding: 20px;
-  border-radius: 12px;
-  min-height: 350px;
-  max-height: 60vh;
-  overflow-y: auto;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.15);
-  display: flex;
-  flex-direction: column;
+background: rgba(255,255,255,0.95);
+color: #222;
+font-family: 'Arial', sans-serif;
+padding: 20px;
+border-radius: 12px;
+min-height: 350px;
+max-height: 60vh;
+overflow-y: auto;
+box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+display: flex;
+flex-direction: column;
 }
 
 .chat-message {
-  margin: 8px 0;
-  padding: 10px 18px;
-  border-radius: 18px;
-  max-width: 80%;
-  white-space: pre-line;
-  font-size: 1.08em;
-  background: #f4f8fb;
-  color: #222;
-  box-shadow: 0 1px 4px rgba(112,146,155,0.07);
-  text-align: left;
+margin: 8px 0;
+padding: 10px 18px;
+border-radius: 18px;
+max-width: 80%;
+white-space: pre-line;
+font-size: 1.08em;
+background: #f4f8fb;
+color: #222;
+box-shadow: 0 1px 4px rgba(112,146,155,0.07);
+text-align: left;
 }
 
 .chat-message.user {
-  background: #e3f0f7;
-  color: #2a5d7c;
-  align-self: flex-end;
-  border-left: 4px solid #70929b;
+background: #e3f0f7;
+color: #2a5d7c;
+align-self: flex-end;
+border-left: 4px solid #70929b;
 }
 
 .chat-message.bot {
-  background: #f4f8fb;
-  color: #222;
-  align-self: flex-start;
-  border-left: 4px solid #5a7b83;
+background: #f4f8fb;
+color: #222;
+align-self: flex-start;
+border-left: 4px solid #5a7b83;
 }
 
 .chat-message.warning {
-  background: #fff3f3;
-  color: #b30000;
-  border-left: 4px solid #ff5555;
+background: #fff3f3;
+color: #b30000;
+border-left: 4px solid #ff5555;
 }
 
 .chat-form {
-  display: flex;
-  margin-top: 10px;
+display: flex;
+margin-top: 10px;
 }
 
 #chat-input {
-  flex: 1;
-  background: #fff;
-  color: #222;
-  border: 1px solid #70929b;
-  border-radius: 8px;
-  font-family: 'Arial', sans-serif;
-  font-size: 1.1em;
-  outline: none;
-  padding: 10px 14px;
-  margin-right: 10px;
-  transition: border-color 0.2s;
+flex: 1;
+background: #fff;
+color: #222;
+border: 1px solid #70929b;
+border-radius: 8px;
+font-family: 'Arial', sans-serif;
+font-size: 1.1em;
+outline: none;
+padding: 10px 14px;
+margin-right: 10px;
+transition: border-color 0.2s;
 }
 
 #chat-input:focus {
-  border-color: #5a7b83;
+border-color: #5a7b83;
 }
 
 #chat-input::placeholder {
-  color: #b0b0b0;
-  opacity: 1;
+color: #b0b0b0;
+opacity: 1;
 }
 
 .blinking-cursor {
-  font-weight: bold;
-  font-size: 1.1em;
-  color: #70929b;
-  animation: blink 1s steps(2, start) infinite;
+font-weight: bold;
+font-size: 1.1em;
+color: #70929b;
+animation: blink 1s steps(2, start) infinite;
 }
 
 @keyframes blink {
-  to { visibility: hidden; }
+to { visibility: hidden; }
 }
 
 /* Medicine Dispensing Toggle Styles */
 .toggle-options {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 12px;
-  justify-content: flex-start;
-  margin-top: 16px;
+display: flex;
+flex-wrap: wrap;
+gap: 12px;
+justify-content: flex-start;
+margin-top: 16px;
 }
 
 .toggle-btn {
-  background: #f5f7fa;
-  border: 2px solid #007bff;
-  border-radius: 24px;
-  padding: 12px 24px;
-  font-size: 1rem;
-  color: #007bff;
-  cursor: pointer;
-  transition: background 0.2s, color 0.2s;
-  margin-bottom: 8px;
-  white-space: normal;
-  max-width: 220px;
-  text-align: center;
-  box-shadow: 0 1px 4px rgba(112,146,155,0.07);
+background: #f5f7fa;
+border: 2px solid #007bff;
+border-radius: 24px;
+padding: 12px 24px;
+font-size: 1rem;
+color: #007bff;
+cursor: pointer;
+transition: background 0.2s, color 0.2s;
+margin-bottom: 8px;
+white-space: normal;
+max-width: 220px;
+text-align: center;
+box-shadow: 0 1px 4px rgba(112,146,155,0.07);
 }
 
 .toggle-btn.selected,
 .toggle-btn:active {
-  background: #007bff;
-  color: #fff;
+background: #007bff;
+color: #fff;
 }
 
 @media (max-width: 600px) {
-  .toggle-btn {
-    font-size: 0.95rem;
-    padding: 10px 12px;
-    max-width: 100%;
-  }
-  .toggle-options {
-    gap: 8px;
-  }
+.toggle-btn {
+  font-size: 0.95rem;
+  padding: 10px 12px;
+  max-width: 100%;
+}
+.toggle-options {
+  gap: 8px;
+}
 }

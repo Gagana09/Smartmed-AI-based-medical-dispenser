@@ -144,14 +144,12 @@ def chat():
     else:
         bot_instance = TerminalStyleWebChatbot()
         bot_instance.restore_state(session['chatbot_state'])
-    print("DEBUG: State before processing:", bot_instance.state)
     # If this is a greeting request, just return the greeting
     if request.json.get('greeting'):
         return jsonify({'response': bot_instance.get_greeting()})
     # Process user input
     user_input = request.json['message']
     response = bot_instance.get_response(user_input)
-    print("DEBUG: State after processing:", bot_instance.state)
     # Always update session state after processing
     session['chatbot_state'] = bot_instance.get_serializable_state()
     # Only store in MongoDB if chat is done

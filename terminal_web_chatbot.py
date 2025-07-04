@@ -4,7 +4,7 @@ import threading
 import re
 import difflib
 
-DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -206,8 +206,6 @@ class TerminalStyleWebChatbot:
 
     def get_response(self, user_input):
         s = self.state
-        print("\n[DEBUG] ====== ENTER get_response ======")
-        print("[DEBUG] State at start:", s)
         if s['step'] == 'ask_age':
             try:
                 age = int(user_input)
@@ -312,139 +310,120 @@ class TerminalStyleWebChatbot:
         if s['step'] == 'filter_and_followup':
             return self._filter_and_followup()
         if s['step'] == 'followup_loop':
-            print(f"[DEBUG] Followup loop - user input: '{user_input}'")
-            print(f"[DEBUG] Current followup col: {s.get('current_followup_col')}")
-            print(f"[DEBUG] Filter_df is None: {s['filter_df'] is None}")
-            print(f"[DEBUG] Filter_df shape: {s['filter_df'].shape if s['filter_df'] is not None else 'None'}")
             if s['filter_df'] is None:
-                print("[DEBUG] filter_df is None in followup_loop, recomputing with _filter_and_followup()!")
                 s['step'] = 'filter_and_followup'
                 # Save the pending follow-up answer to process after recompute
                 if s.get('current_followup_col'):
                     s['_pending_followup_answer'] = (s['current_followup_col'], user_input.strip())
                 return self._filter_and_followup()
             if s['filter_df'] is not None:
-                print(f"[DEBUG] Filter_df columns: {list(s['filter_df'].columns)}")
-            if s.get('current_followup_col'):
-                print(f"[DEBUG] Found current_followup_col: {s.get('current_followup_col')}")
-                ans = user_input.strip()
-                col = s['current_followup_col']
-                if col not in s['filter_df'].columns:
-                    print(f"[DEBUG] Column {col} not in DataFrame, skipping. Columns are: {list(s['filter_df'].columns)}")
+                if s.get('current_followup_col'):
+                    ans = user_input.strip()
+                    col = s['current_followup_col']
+                    if col not in s['filter_df'].columns:
+                        s['current_followup_col'] = None
+                        s['current_followup_qcol'] = None
+                        s['current_row_index'] = None
+                        for idx, row in s['filter_df'].iterrows():
+                            for i in range(1, 4):
+                                q_col = f"Follow up question {i}"
+                                a_col = f"Answer {i}"
+                                if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" and f"followup_{i}_answered" not in s:
+                                    s[f"current_followup_col"] = a_col
+                                    s[f"current_followup_qcol"] = q_col
+                                    s[f"current_row_index"] = idx
+                                    q = str(row[q_col]).strip()
+                                    return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                        if s['filter_df'] is not None and len(s['filter_df']) >= 1:
+                            s['final_row'] = s['filter_df'].iloc[0]
+                            s['step'] = 'final_recommendation'
+                            return self._final_recommendation()
+                        else:
+                            s['step'] = 'done'
+                            return "Sorry, no matching profile found. Please consult a doctor."
+                    ans = user_input.strip()
+                    col = s['current_followup_col']
+                    if col not in s['filter_df'].columns:
+                        s['current_followup_col'] = None
+                        s['current_followup_qcol'] = None
+                        s['current_row_index'] = None
+                        for idx, row in s['filter_df'].iterrows():
+                            for i in range(1, 4):
+                                q_col = f"Follow up question {i}"
+                                a_col = f"Answer {i}"
+                                if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" and f"followup_{i}_answered" not in s:
+                                    s[f"current_followup_col"] = a_col
+                                    s[f"current_followup_qcol"] = q_col
+                                    s[f"current_row_index"] = idx
+                                    q = str(row[q_col]).strip()
+                                    return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                        if s['filter_df'] is not None and len(s['filter_df']) >= 1:
+                            s['final_row'] = s['filter_df'].iloc[0]
+                            s['step'] = 'final_recommendation'
+                            return self._final_recommendation()
+                        else:
+                            s['step'] = 'done'
+                            return "Sorry, no matching profile found. Please consult a doctor."
+                    print(f"[DEBUG] Processing follow-up answer: {col} = {ans}")
+                    unique_values = s['filter_df'][col].astype(str).str.strip().str.lower().unique()
+                    ans_lower = ans.strip().lower()
+                    matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
+                    if len(matching_rows) == 0:
+                        print(f"[DEBUG] No exact match, trying partial matching")
+                        for val in unique_values:
+                            if ans_lower in val or val in ans_lower:
+                                print(f"[DEBUG] Partial match found: '{ans_lower}' matches '{val}'")
+                                ans_lower = val
+                                matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
+                                break
+                    try:
+                        followup_num = int(col.split()[-1])
+                    except Exception:
+                        followup_num = 1  # fallback
+                    s[f"followup_{followup_num}_answer"] = ans_lower
+                    s[f"followup_{followup_num}_answered"] = True
                     s['current_followup_col'] = None
                     s['current_followup_qcol'] = None
                     s['current_row_index'] = None
-                    for idx, row in s['filter_df'].iterrows():
-                        for i in range(1, 4):
-                            q_col = f"Follow up question {i}"
-                            a_col = f"Answer {i}"
-                            if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" and f"followup_{i}_answered" not in s:
-                                s[f"current_followup_col"] = a_col
-                                s[f"current_followup_qcol"] = q_col
-                                s[f"current_row_index"] = idx
-                                print(f"[DEBUG] Next follow-up after skip: {q_col} -> {str(row[q_col]).strip()}")
-                                q = str(row[q_col]).strip()
-                                print(f"[DEBUG] Checking follow-up question: '{q}' (normalized: '{normalize_question(q)}')")
-                                print(f"[DEBUG] All normalized keys: {[normalize_question(k) for k in FOLLOWUP_1_QUESTIONS]}")
-                                for key in FOLLOWUP_1_QUESTIONS:
-                                    if normalize_question(key) == normalize_question(q):
-                                        if 'pain sharp' in normalize_question(q):
-                                            print('FORCED MATCH for pain sharp')
-                                            return {"response": q, "options": ["Yes", "No"]}
-                                        return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
-                                for key in FOLLOWUP_2_QUESTIONS:
-                                    if normalize_question(key) == normalize_question(q):
-                                        return {"response": q, "options": FOLLOWUP_2_QUESTIONS[key]}
-                                if i == 3:
-                                    return {"response": q, "options": ["Yes", "No"]}
-                                return q
-                    if s['filter_df'] is not None and len(s['filter_df']) >= 1:
-                        print(f"[DEBUG] No more follow-ups, giving recommendation.")
+                    s['filter_df'] = matching_rows
+                    if s['filter_df'].empty:
+                        s['step'] = 'done'
+                        return "Sorry, no matching profile found. Please consult a doctor."
+                    if len(s['filter_df']) == 1:
+                        s['final_row'] = s['filter_df'].iloc[0]
+                        s['step'] = 'final_recommendation'
+                        return self._final_recommendation()
+                else:
+                    print(f"[DEBUG] No current_followup_col found")
+                    print(f"[DEBUG] Available follow-up state: {[k for k, v in s.items() if 'followup' in k or 'current' in k]}")
+                # Find the next unanswered follow-up question (ONLY 1-3)
+                found_next = False
+                for idx, row in s['filter_df'].iterrows():
+                    for i in range(1, 4):
+                        q_col = f"Follow up question {i}"
+                        a_col = f"Answer {i}"
+                        fq = row.get(q_col, None) if hasattr(row, 'get') else None
+                        if fq is None or pd.isna(fq) or not str(fq).strip():
+                            continue
+                        q = fq
+                        if q and f"followup_{i}_answered" not in s:
+                            s[f"current_followup_col"] = a_col
+                            s[f"current_followup_qcol"] = q_col
+                            s[f"current_row_index"] = idx
+                            return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
+                # If no more follow-ups, always give the recommendation from the first row
+                if not found_next:
+                    s['current_followup_col'] = None
+                    s['current_followup_qcol'] = None
+                    s['current_row_index'] = None
+                    if s['filter_df'] is not None and len(s['filter_df']) > 0:
                         s['final_row'] = s['filter_df'].iloc[0]
                         s['step'] = 'final_recommendation'
                         return self._final_recommendation()
                     else:
-                        print(f"[DEBUG] No more follow-ups and no rows left, fallback.")
                         s['step'] = 'done'
                         return "Sorry, no matching profile found. Please consult a doctor."
-                print(f"[DEBUG] Processing follow-up answer: {col} = {ans}")
-                unique_values = s['filter_df'][col].astype(str).str.strip().str.lower().unique()
-                print(f"[DEBUG] Available values for {col}: {unique_values}")
-                ans_lower = ans.strip().lower()
-                matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
-                print(f"[DEBUG] Found {len(matching_rows)} rows matching {col}={ans}")
-                if len(matching_rows) == 0:
-                    print(f"[DEBUG] No exact match, trying partial matching")
-                    for val in unique_values:
-                        if ans_lower in val or val in ans_lower:
-                            print(f"[DEBUG] Partial match found: '{ans_lower}' matches '{val}'")
-                            ans_lower = val
-                            matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
-                            break
-                try:
-                    followup_num = int(col.split()[-1])
-                except Exception:
-                    followup_num = 1  # fallback
-                s[f"followup_{followup_num}_answer"] = ans_lower
-                s[f"followup_{followup_num}_answered"] = True
-                s['current_followup_col'] = None
-                s['current_followup_qcol'] = None
-                s['current_row_index'] = None
-                s['filter_df'] = matching_rows
-                print(f"[DEBUG] After follow-up filtering: {len(s['filter_df'])} rows")
-                if s['filter_df'].empty:
-                    print(f"[DEBUG] All rows filtered out after follow-up answer.")
-                    s['step'] = 'done'
-                    return "Sorry, no matching profile found. Please consult a doctor."
-                if len(s['filter_df']) == 1:
-                    print(f"[DEBUG] Only one row left after follow-up, giving recommendation.")
-                    s['final_row'] = s['filter_df'].iloc[0]
-                    s['step'] = 'final_recommendation'
-                    return self._final_recommendation()
-            else:
-                print(f"[DEBUG] No current_followup_col found")
-                print(f"[DEBUG] Available follow-up state: {[k for k, v in s.items() if 'followup' in k or 'current' in k]}")
-            # Find the next unanswered follow-up question (ONLY 1-3)
-            found_next = False
-            for idx, row in s['filter_df'].iterrows():
-                for i in range(1, 4):
-                    q_col = f"Follow up question {i}"
-                    a_col = f"Answer {i}"
-                    fq = row.get(q_col, None) if hasattr(row, 'get') else None
-                    if fq is None or pd.isna(fq) or not str(fq).strip():
-                        continue
-                    q = fq
-                    if q and f"followup_{i}_answered" not in s:
-                        s[f"current_followup_col"] = a_col
-                        s[f"current_followup_qcol"] = q_col
-                        s[f"current_row_index"] = idx
-                        print(f"[DEBUG] Checking follow-up question: '{q}' (normalized: '{normalize_question(q)}')")
-                        print(f"[DEBUG] All normalized keys: {[normalize_question(k) for k in FOLLOWUP_1_QUESTIONS]}")
-                        for key in FOLLOWUP_1_QUESTIONS:
-                            if normalize_question(key) == normalize_question(q):
-                                if 'pain sharp' in normalize_question(q):
-                                    print('FORCED MATCH for pain sharp')
-                                    return {"response": q, "options": ["Yes", "No"]}
-                                return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
-                        for key in FOLLOWUP_2_QUESTIONS:
-                            if normalize_question(key) == normalize_question(q):
-                                return {"response": q, "options": FOLLOWUP_2_QUESTIONS[key]}
-                        if i == 3:
-                            return {"response": q, "options": ["Yes", "No"]}
-                        return q
-            # If no more follow-ups, always give the recommendation from the first row
-            if not found_next:
-                s['current_followup_col'] = None
-                s['current_followup_qcol'] = None
-                s['current_row_index'] = None
-                if s['filter_df'] is not None and len(s['filter_df']) > 0:
-                    s['final_row'] = s['filter_df'].iloc[0]
-                    s['step'] = 'final_recommendation'
-                    return self._final_recommendation()
-                else:
-                    s['step'] = 'done'
-                    return "Sorry, no matching profile found. Please consult a doctor."
-            return self._followup_prompt()
+                return self._followup_prompt()
         if s['step'] == 'final_recommendation':
             # After recommendation, expect medicine check
             s['step'] = 'medicine_check'
@@ -465,7 +444,6 @@ class TerminalStyleWebChatbot:
                 return "Thank you. Your selection has been recorded."
         if s['step'] == 'done':
             return "Sorry, no matching profile found. Please consult a doctor."
-        print("[DEBUG] State at end:", s)
         return "Sorry, I didn't understand."
 
     def _filter_and_followup(self):
@@ -473,8 +451,6 @@ class TerminalStyleWebChatbot:
         Filter the dataset based on all collected symptoms and demographics, then proceed to follow-up questions.
         """
         s = self.state
-        print(f"[DEBUG] Current symptoms: {s['user_flags']}")
-        print(f"[DEBUG] Dataset shape before filtering: {self.df.shape}")
         filter_df = self.df.copy()
         before_count = len(filter_df)
         filter_df = filter_df[
@@ -483,7 +459,6 @@ class TerminalStyleWebChatbot:
             (filter_df["Weight"] == s['weight_bucket'])
         ]
         after_count = len(filter_df)
-        print(f"[DEBUG] After demographics filter: {before_count} -> {after_count} rows")
         if filter_df.empty:
             s['step'] = 'done'
             return "Sorry, no matching profile found. Please consult a doctor."
@@ -491,16 +466,9 @@ class TerminalStyleWebChatbot:
             before_count = len(filter_df)
             condition = filter_df[sym] == val
             matching_rows = filter_df[condition]
-            print(f"[DEBUG] Looking for {sym}={val}")
-            print(f"[DEBUG] Found {len(matching_rows)} rows with {sym}={val}")
-            if len(matching_rows) > 0:
-                print(f"[DEBUG] Sample rows with {sym}={val}:")
-                print(matching_rows[['Age', 'Gender', 'Weight', sym]][:3])
             filter_df = matching_rows
             after_count = len(filter_df)
-            print(f"[DEBUG] Filtering {sym}={val}: {before_count} -> {after_count} rows")
             if filter_df.empty:
-                print(f"[DEBUG] No rows left after filtering {sym}={val}")
                 s['step'] = 'done'
                 return "Sorry, no matching profile found. Please consult a doctor."
         print(f"[DEBUG] Final filtered dataset shape: {filter_df.shape}")
@@ -513,20 +481,13 @@ class TerminalStyleWebChatbot:
         s['followup_index'] = 1
         # If we're recomputing after a follow-up answer, we need to apply the follow-up filters
         if any(f"followup_{i}_answer" in s for i in range(1, 4)):
-            print("[DEBUG] Applying follow-up filters after recomputation")
             for i in range(1, 4):  # Only 1-3
                 ans_key = f"followup_{i}_answer"
                 if ans_key in s:
                     ans = s[ans_key]
                     col = f"Answer {i}"
                     if col in filter_df.columns:
-                        before_count = len(filter_df)
                         filter_df = filter_df[filter_df[col].astype(str).str.strip().str.lower() == ans.strip().lower()]
-                        after_count = len(filter_df)
-                        print(f"[DEBUG] Follow-up filter {col}={ans}: {before_count} -> {after_count} rows")
-                        if filter_df.empty:
-                            s['step'] = 'done'
-                            return "Sorry, no matching profile found. Please consult a doctor."
             s['filter_df'] = filter_df
             if len(filter_df) == 1:
                 s['final_row'] = filter_df.iloc[0]
@@ -535,10 +496,7 @@ class TerminalStyleWebChatbot:
         # If we have a pending follow-up answer, process it now
         if '_pending_followup_answer' in s:
             col, ans = s.pop('_pending_followup_answer')
-            print(f"[DEBUG] Processing pending follow-up answer after recompute: {col} = {ans}")
-            # PATCH: Only process if col exists and is Answer 1-3
             if col not in s['filter_df'].columns or not any(col == f"Answer {i}" for i in range(1, 4)):
-                print(f"[DEBUG] Column {col} not in DataFrame or not a valid follow-up, skipping.")
                 s['current_followup_col'] = None
                 s['current_followup_qcol'] = None
                 s['current_row_index'] = None
@@ -552,39 +510,25 @@ class TerminalStyleWebChatbot:
                             s[f"current_followup_col"] = a_col
                             s[f"current_followup_qcol"] = q_col
                             s[f"current_row_index"] = idx
-                            print(f"[DEBUG] Next follow-up after skip: {q_col} -> {str(row[q_col]).strip()}")
                             found_next = True
                             return str(row[q_col]).strip()
                 # If no more follow-ups, recommend or fallback
                 if not found_next and s['filter_df'] is not None and len(s['filter_df']) >= 1:
-                    print(f"[DEBUG] No more follow-ups, giving recommendation.")
                     s['final_row'] = s['filter_df'].iloc[0]
                     s['step'] = 'final_recommendation'
                     return self._final_recommendation()
                 else:
-                    print(f"[DEBUG] No more follow-ups and no rows left, fallback.")
                     s['step'] = 'done'
                     return "Sorry, no matching profile found. Please consult a doctor."
             unique_values = s['filter_df'][col].astype(str).str.strip().str.lower().unique()
-            print(f"[DEBUG] Available values for {col}: {unique_values}")
             ans_lower = ans.strip().lower()
             matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
-            print(f"[DEBUG] Found {len(matching_rows)} rows matching {col}={ans}")
-            if len(matching_rows) == 0:
-                print(f"[DEBUG] No exact match, trying partial matching")
-                for val in unique_values:
-                    if ans_lower in val or val in ans_lower:
-                        print(f"[DEBUG] Partial match found: '{ans_lower}' matches '{val}'")
-                        ans_lower = val
-                        matching_rows = s['filter_df'][s['filter_df'][col].astype(str).str.strip().str.lower() == ans_lower]
-                        break
             s[f"followup_{col.split()[-1]}_answer"] = ans_lower
             s[f"followup_{col.split()[-1]}_answered"] = True
             s['current_followup_col'] = None
             s['current_followup_qcol'] = None
             s['current_row_index'] = None
             s['filter_df'] = matching_rows
-            print(f"[DEBUG] After follow-up filtering: {len(s['filter_df'])} rows")
             if s['filter_df'].empty:
                 s['step'] = 'done'
                 return "Sorry, no matching profile found. Please consult a doctor."
@@ -631,20 +575,7 @@ class TerminalStyleWebChatbot:
                         s[f"current_followup_col"] = a_col
                         s[f"current_followup_qcol"] = q_col
                         s[f"current_row_index"] = idx
-                        print(f"[DEBUG] Checking follow-up question: '{q}' (normalized: '{normalize_question(q)}')")
-                        print(f"[DEBUG] All normalized keys: {[normalize_question(k) for k in FOLLOWUP_1_QUESTIONS]}")
-                        for key in FOLLOWUP_1_QUESTIONS:
-                            if normalize_question(key) == normalize_question(q):
-                                if 'pain sharp' in normalize_question(q):
-                                    print('FORCED MATCH for pain sharp')
-                                    return {"response": q, "options": ["Yes", "No"]}
-                                return {"response": q, "options": FOLLOWUP_1_QUESTIONS[key]}
-                        for key in FOLLOWUP_2_QUESTIONS:
-                            if normalize_question(key) == normalize_question(q):
-                                return {"response": q, "options": FOLLOWUP_2_QUESTIONS[key]}
-                        if i == 3:
-                            return {"response": q, "options": ["Yes", "No"]}
-                        return q
+                        return {"response": q, "options": FOLLOWUP_1_QUESTIONS[q] if q in FOLLOWUP_1_QUESTIONS else FOLLOWUP_2_QUESTIONS[q] if q in FOLLOWUP_2_QUESTIONS else FOLLOWUP_3_QUESTIONS[q] if q in FOLLOWUP_3_QUESTIONS else ["Yes", "No"]}
         # If no more follow-ups found, proceed to recommendation
         if s['filter_df'] is not None and len(s['filter_df']) >= 1:
             s['final_row'] = s['filter_df'].iloc[0]
@@ -816,8 +747,8 @@ class TerminalStyleWebChatbot:
         valid = False
         for opt in s['dispense_options']:
             if selection.lower() == opt.lower():
-                valid = True
                 s['dispense_selection'] = opt
+                valid = True
                 break
         if not valid:
             # Try to match by index if user enters a number
@@ -829,7 +760,7 @@ class TerminalStyleWebChatbot:
             except:
                 pass
         if valid:
-            s['step'] = 'done'
+            s['step'] = 'dispense_confirm'
             return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
         else:
-            return {"response": "Please select a valid option:", "options": s['dispense_options']} 
+            return {"response": "Please select a valid option:", "options": s['dispense_options']}
