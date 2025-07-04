@@ -829,7 +829,7 @@ class TerminalStyleWebChatbot:
             except:
                 pass
         if valid:
-            s['step'] = 'dispense_confirm'
+            s['step'] = 'done'
             return f"Thank you for selecting {s['dispense_selection']}. Your selection has been recorded."
         else:
             return {"response": "Please select a valid option:", "options": s['dispense_options']} 
