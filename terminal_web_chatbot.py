@@ -616,18 +616,29 @@ class TerminalStyleWebChatbot:
         # More precise medicine matching (case-insensitive)
         matched_medicines = []
         rec_lower = rec.lower()
+        rec_words = set(rec_lower.split())  # Split into words for exact word matching
+        
         for med in MEDICINE_LIST:
             med_norm = med.strip().lower()
-            # Check for exact medicine name match in recommendation
-            # This prevents false matches like "ORS" matching parts of other words
-            if med_norm in rec_lower:
+            med_words = set(med_norm.split())  # Split medicine into words
+            
+            # Check for exact word matches - all medicine words must be present as complete words
+            if med_words.issubset(rec_words):
                 if not any(m.strip().lower() == med_norm for m in matched_medicines):
                     matched_medicines.append(med)
-            # Also check for partial matches but only for multi-word medicines
-            elif ' ' in med_norm:
-                med_parts = [part.strip().lower() for part in med_norm.split()]
-                # Check if all parts of the medicine name appear in the recommendation
-                if all(part in rec_lower for part in med_parts if len(part) > 2):
+            # For single-word medicines, check if it's a complete word match
+            elif len(med_words) == 1:
+                med_word = list(med_words)[0]
+                if med_word in rec_words:
+                    if not any(m.strip().lower() == med_norm for m in matched_medicines):
+                        matched_medicines.append(med)
+            # Handle medicines with parentheses and special characters
+            else:
+                # Remove parentheses and special characters for comparison
+                med_clean = re.sub(r'[()]', '', med_norm)
+                rec_clean = re.sub(r'[()]', '', rec_lower)
+                # Check if the cleaned medicine name appears in the cleaned recommendation
+                if med_clean in rec_clean:
                     if not any(m.strip().lower() == med_norm for m in matched_medicines):
                         matched_medicines.append(med)
         if matched_medicines:
