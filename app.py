@@ -321,6 +321,8 @@ def medicine_gateway():
                 }
             ]
         )
+        # Print 'y' for successful medicine dispense after payment
+        print('y')
         return jsonify({'success': True, 'message': f'Your payment for {medicine} was successful. Medicine is dispensing.'})
     medicine = request.args.get('medicine', '')
     return render_template('medicine_gateway.html', medicine=medicine)

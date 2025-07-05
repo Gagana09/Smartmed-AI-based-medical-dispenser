@@ -787,8 +787,7 @@ class TerminalStyleWebChatbot:
                 s['step'] = 'done'
                 return 'OK, thank you. Take care.'
             else:
-                # Print 'y' for successful medicine dispense (after payment/redirect)
-                print('y')
+                # Redirect to medicine gateway for payment
                 return {'redirect': f"/medicine_gateway?medicine={s['dispense_selection']}"}
         else:
             return {"response": "Please select a valid option:", "options": s['dispense_options'], "type": "medicine"}
