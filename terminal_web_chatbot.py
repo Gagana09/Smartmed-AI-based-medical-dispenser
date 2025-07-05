@@ -4,7 +4,7 @@ import threading
 import re
 import difflib
 
-DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -613,14 +613,23 @@ class TerminalStyleWebChatbot:
         if 'consult doctor' in rec.lower():
             s['step'] = 'done'
             return f"Based on your profile and symptoms:\n→ Recommendation: {rec}"
-        # Partial matching for all medicines (case-insensitive)
+        # More precise medicine matching (case-insensitive)
         matched_medicines = []
         rec_lower = rec.lower()
         for med in MEDICINE_LIST:
             med_norm = med.strip().lower()
-            if any(part.strip().lower() in rec_lower for part in med.lower().split(',')):
+            # Check for exact medicine name match in recommendation
+            # This prevents false matches like "ORS" matching parts of other words
+            if med_norm in rec_lower:
                 if not any(m.strip().lower() == med_norm for m in matched_medicines):
                     matched_medicines.append(med)
+            # Also check for partial matches but only for multi-word medicines
+            elif ' ' in med_norm:
+                med_parts = [part.strip().lower() for part in med_norm.split()]
+                # Check if all parts of the medicine name appear in the recommendation
+                if all(part in rec_lower for part in med_parts if len(part) > 2):
+                    if not any(m.strip().lower() == med_norm for m in matched_medicines):
+                        matched_medicines.append(med)
         if matched_medicines:
             filtered_meds = filter_longest_medicines(matched_medicines)
             med_str = ', '.join(filtered_meds)

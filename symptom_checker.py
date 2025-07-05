@@ -118,21 +118,29 @@ class SymptomChecker:
         followup_cols = [f"Follow up question {i}" for i in range(1, 5)]
         answer_cols = [f"Answer {i}" for i in range(1, 4)]
         asked = set()
+        
+        # Collect all valid follow-up questions from matched rows
+        valid_questions = []
         for idx, row in self.matched_rows.iterrows():
             for i, fq_col in enumerate(followup_cols):
                 fq = row.get(fq_col, None)
-                if pd.isna(fq) or not str(fq).strip():
+                # Skip empty, NaN, or invalid questions (like "–")
+                if pd.isna(fq) or not str(fq).strip() or str(fq).strip() == '–':
                     continue
                 fq_key = fq.strip().lower()
                 if fq_key not in asked:
-                    ans = None
-                    if i < 3:
-                        ans = input(f"{fq} ").strip()
-                        self.followup_answers[fq_col] = ans
-                        self.followup_answers[answer_cols[i]] = ans
-                    else:
-                        print(fq)
+                    valid_questions.append((i, fq_col, fq, answer_cols[i] if i < 3 else None))
                     asked.add(fq_key)
+        
+        # Ask valid follow-up questions
+        for i, fq_col, fq, ans_col in valid_questions:
+            if ans_col:  # Questions 1-3 that expect answers
+                ans = input(f"{fq} ").strip()
+                self.followup_answers[fq_col] = ans
+                self.followup_answers[ans_col] = ans
+            else:  # Question 4 (informational only)
+                print(fq)
+        
         # Filter matched_rows by follow-up answers (case-insensitive)
         for i, fq_col in enumerate(followup_cols[:3]):
             ans_col = answer_cols[i]

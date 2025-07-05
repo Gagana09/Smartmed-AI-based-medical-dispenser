@@ -122,23 +122,27 @@ def main():
         return
     row = match.iloc[0]
 
-    # Follow-up questions
+    # Follow-up questions - only ask valid questions (skip empty or "–")
+    valid_questions_asked = 0
     for i in range(1, 5):
         q_col = f"Follow up question {i}"
         a_col = f"Answer {i}"
-        q = row[q_col] if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" else None
+        q = row[q_col] if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" and str(row[q_col]).strip() != "–" else None
         a = row[a_col] if a_col in row and pd.notna(row[a_col]) and str(row[a_col]).strip() != "" else None
-        if i == 1 and q:
-            print(f"{q}\nAnswer: {a if a else ''}")
-        elif i == 2:
-            if q:
+        
+        if q:  # Only process if question is valid
+            valid_questions_asked += 1
+            if i == 1:
                 print(f"{q}\nAnswer: {a if a else ''}")
-            else:
-                break
-        elif i in [3, 4] and q:
-            print(q)
-            if i == 3:
-                user_a = ask("Your answer:")
+            elif i == 2:
+                print(f"{q}\nAnswer: {a if a else ''}")
+            elif i in [3, 4]:
+                print(q)
+                if i == 3:
+                    user_a = ask("Your answer:")
+        elif valid_questions_asked == 0 and i == 2:
+            # If no valid questions found by question 2, break and go to recommendation
+            break
 
     # Final recommendation
     print("\nBased on your profile and symptoms:")
@@ -298,19 +302,26 @@ class MedicalChatbot:
         followup_cols = [f"Follow up question {i}" for i in range(1, 5)]
         answer_cols = [f"Answer {i}" for i in range(1, 4)]
         asked = self.state['asked_followups']
+        
+        # Collect all valid follow-up questions from matched rows
+        valid_questions = []
         for idx, row in self.checker.matched_rows.iterrows():
             for i, fq_col in enumerate(followup_cols):
                 fq = row.get(fq_col, None)
-                if pd.isna(fq) or not str(fq).strip():
+                # Skip empty, NaN, or invalid questions (like "–")
+                if pd.isna(fq) or not str(fq).strip() or str(fq).strip() == '–':
                     continue
                 fq_key = fq.strip().lower()
                 if fq_key not in asked:
-                    self.state['last_question'] = answer_cols[i] if i < 3 else None
+                    valid_questions.append((i, fq_col, fq, answer_cols[i] if i < 3 else None))
                     asked.add(fq_key)
-                    if i < 3:
-                        return fq
-                    else:
-                        return fq  # Q4, no answer expected
+        
+        # Return the first valid question
+        if valid_questions:
+            i, fq_col, fq, ans_col = valid_questions[0]
+            self.state['last_question'] = ans_col
+            return fq
+        
         # After all follow-ups
         self.state['last_question'] = None
         return None
