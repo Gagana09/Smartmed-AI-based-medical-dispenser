@@ -9,7 +9,19 @@
 <body>
   <div class="overlay">
     <h2>Create Account</h2>
-    <form action="{{ url_for('register') }}" method="POST" class="form">
+    
+    <!-- Flash Messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% if messages %}
+        {% for category, message in messages %}
+          <div class="alert alert-{{ 'error' if category == 'error' else 'success' if category == 'success' else 'info' }}">
+            {{ message }}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endwith %}
+    
+    <form action="{{ url_for('register') }}" method="POST" class="form" id="registerForm">
       <div class="form-group">
         <label for="username">Username</label>
         <input type="text" id="username" name="username" placeholder="e.g. johndoe" required>
@@ -21,18 +33,85 @@
       <div class="form-group">
         <label for="password">Password</label>
         <input type="password" id="password" name="password" placeholder="••••••••" required>
+        <small class="password-hint">Password must be at least 6 characters long</small>
       </div>
       <div class="form-group">
         <label for="confirm_password">Confirm Password</label>
         <input type="password" id="confirm_password" name="confirm_password" placeholder="••••••••" required>
+        <div id="password-match-message" class="password-match-message"></div>
       </div>
       <div class="form-group">
-        <button type="submit" class="btn">Register</button>
+        <button type="submit" class="btn" id="submitBtn">Register</button>
       </div>
     </form>
     <div class="login-link">
       <p>Already have an account? <a href="{{ url_for('login') }}">Login here</a></p>
     </div>
   </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const password = document.getElementById('password');
+      const confirmPassword = document.getElementById('confirm_password');
+      const passwordMatchMessage = document.getElementById('password-match-message');
+      const submitBtn = document.getElementById('submitBtn');
+      const form = document.getElementById('registerForm');
+
+      function validatePasswordMatch() {
+        const passwordValue = password.value;
+        const confirmPasswordValue = confirmPassword.value;
+
+        // Clear previous message
+        passwordMatchMessage.innerHTML = '';
+        passwordMatchMessage.className = 'password-match-message';
+
+        // Check if both fields have values
+        if (passwordValue && confirmPasswordValue) {
+          if (passwordValue === confirmPasswordValue) {
+            passwordMatchMessage.innerHTML = '✓ Passwords match';
+            passwordMatchMessage.className = 'password-match-message match';
+            submitBtn.disabled = false;
+            submitBtn.style.opacity = '1';
+            return true;
+          } else {
+            passwordMatchMessage.innerHTML = '✗ Passwords do not match';
+            passwordMatchMessage.className = 'password-match-message no-match';
+            submitBtn.disabled = true;
+            submitBtn.style.opacity = '0.6';
+            return false;
+          }
+        } else {
+          // If either field is empty, don't show message but allow submission
+          submitBtn.disabled = false;
+          submitBtn.style.opacity = '1';
+          return true;
+        }
+      }
+
+      // Add event listeners for real-time validation
+      password.addEventListener('input', validatePasswordMatch);
+      confirmPassword.addEventListener('input', validatePasswordMatch);
+
+      // Form submission validation
+      form.addEventListener('submit', function(e) {
+        if (!validatePasswordMatch()) {
+          e.preventDefault();
+          alert('Please make sure passwords match before submitting.');
+          return false;
+        }
+
+        // Additional validation
+        const passwordValue = password.value;
+        if (passwordValue.length < 6) {
+          e.preventDefault();
+          alert('Password must be at least 6 characters long.');
+          return false;
+        }
+
+        // If all validations pass, allow form submission
+        return true;
+      });
+    });
+  </script>
 </body>
 </html>

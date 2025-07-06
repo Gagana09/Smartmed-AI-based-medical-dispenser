@@ -26,6 +26,18 @@
   <section class="login-section">
     <div class="overlay">
       <h2>Login</h2>
+      
+      <!-- Flash Messages -->
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ 'error' if category == 'error' else 'success' if category == 'success' else 'info' }}">
+              {{ message }}
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+      
       <form action="{{ url_for('login') }}" method="POST" style="max-width: 400px; margin: auto;">
         <div class="form-group" style="margin-bottom: 20px; text-align: left;">
           <label for="role">Select Role</label>

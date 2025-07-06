@@ -47,6 +47,16 @@ def login():
         username = request.form['username']
         password = request.form['password']
 
+        # Check if role is selected
+        if not role or role == "":
+            flash("Please select a role (User or Admin)", 'error')
+            return redirect(url_for('login'))
+
+        # Check if username and password are provided
+        if not username or not password:
+            flash("Please enter both username and password", 'error')
+            return redirect(url_for('login'))
+
         if role == 'admin':
             user = db.admin.find_one({'username': username})
         else:
@@ -57,7 +67,13 @@ def login():
             session['username'] = username
             print(f"DEBUG: User '{username}' logged in successfully. Session user: {session.get('user')}")
             return redirect(url_for('admin_dashboard' if role == 'admin' else 'user_dashboard'))
-        flash("Invalid credentials", 'error')
+        
+        # More specific error messages
+        if not user:
+            flash(f"Username '{username}' not found. Please check your username or register a new account.", 'error')
+        else:
+            flash("Incorrect password. Please try again.", 'error')
+        
         print(f"DEBUG: Login failed for username: {username}")
         return redirect(url_for('login'))
     return render_template('login.html')
@@ -70,20 +86,41 @@ def register():
         password = request.form['password']
         confirm_password = request.form['confirm_password']
 
+        # Check if all fields are provided
+        if not username or not email or not password or not confirm_password:
+            flash("Please fill in all fields", 'error')
+            return redirect(url_for('register'))
+
+        # Validate email format
+        if '@' not in email or '.' not in email:
+            flash("Please enter a valid email address", 'error')
+            return redirect(url_for('register'))
+
+        # Check password length
+        if len(password) < 6:
+            flash("Password must be at least 6 characters long", 'error')
+            return redirect(url_for('register'))
+
         if password != confirm_password:
             flash("Passwords do not match", 'error')
             return redirect(url_for('register'))
 
-        if db.users.find_one({'$or': [{'username': username}, {'email': email}] } ):
-            flash("Username or email already exists", 'error')
+        # Check for existing username or email
+        existing_user = db.users.find_one({'$or': [{'username': username}, {'email': email}] })
+        if existing_user:
+            if existing_user.get('username') == username:
+                flash(f"Username '{username}' is already taken. Please choose a different username.", 'error')
+            else:
+                flash(f"Email '{email}' is already registered. Please use a different email or login.", 'error')
             return redirect(url_for('register'))
 
+        # Create new user
         db.users.insert_one({
             'username': username,
             'email': email,
             'password': generate_password_hash(password)
         })
-        flash("Registration successful. Please login.", 'success')
+        flash("Registration successful! Please login with your new account.", 'success')
         return redirect(url_for('login'))
     return render_template('register.html')
 
