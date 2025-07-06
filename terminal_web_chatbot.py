@@ -3,8 +3,9 @@ from symptom_predictor import SymptomPredictor, SYMPTOMS
 import threading
 import re
 import difflib
+import string
 
-DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
+DATASET_PATH = r"C:\Users\achar\OneDrive\Desktop\IDP\new_idp\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -613,15 +614,16 @@ class TerminalStyleWebChatbot:
         if 'consult doctor' in rec.lower():
             s['step'] = 'done'
             return f"Based on your profile and symptoms:\n→ Recommendation: {rec}"
-        # More precise medicine matching (case-insensitive)
+        # More precise medicine matching (case-insensitive, punctuation-stripped)
+        def strip_punct(word):
+            return word.translate(str.maketrans('', '', string.punctuation))
         matched_medicines = []
         rec_lower = rec.lower()
-        rec_words = set(rec_lower.split())  # Split into words for exact word matching
-        
+        # Split and strip punctuation from each word
+        rec_words = set(strip_punct(w) for w in rec_lower.split())
         for med in MEDICINE_LIST:
             med_norm = med.strip().lower()
-            med_words = set(med_norm.split())  # Split medicine into words
-            
+            med_words = set(strip_punct(w) for w in med_norm.split())
             # Check for exact word matches - all medicine words must be present as complete words
             if med_words.issubset(rec_words):
                 if not any(m.strip().lower() == med_norm for m in matched_medicines):
@@ -637,7 +639,6 @@ class TerminalStyleWebChatbot:
                 # Remove parentheses and special characters for comparison
                 med_clean = re.sub(r'[()]', '', med_norm)
                 rec_clean = re.sub(r'[()]', '', rec_lower)
-                # Check if the cleaned medicine name appears in the cleaned recommendation
                 if med_clean in rec_clean:
                     if not any(m.strip().lower() == med_norm for m in matched_medicines):
                         matched_medicines.append(med)
