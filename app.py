@@ -7,7 +7,8 @@ import pandas as pd
 from terminal_web_chatbot import TerminalStyleWebChatbot
 import datetime
 import pytz
-
+import serial   
+import time   
 # Load environment variables from .env (only GROQ_API_KEY expected)
 load_dotenv()
 
@@ -319,8 +320,9 @@ def medicine_gateway():
         from datetime import datetime
         india_tz = pytz.timezone('Asia/Kolkata')
         now = datetime.now(india_tz).isoformat()
+
         # Decrement quantity for each medicine dispensed
-        # Handle combinations like 'Both A and B', 'A only', 'All A and B and C'
+        # Handle combinations like 'Both A and B', 'A only', 'All A and B and C' 
         import re
         med_names = []
         if medicine.lower().startswith('both '):
@@ -331,38 +333,69 @@ def medicine_gateway():
             med_names = [medicine[:-5].strip()]
         else:
             med_names = [medicine.strip()]
+
         for med in med_names:
             db.medicines.update_one({'name': med}, {'$inc': {'quantity': -1}})
+
         # Use aggregation pipeline to update last chat_history entry
         users_collection.update_one(
-            {'username': username, 'chat_history': {'$exists': True, '$ne': []}},
+            {
+                'username': username,
+                'chat_history': {'$exists': True, '$ne': []}
+            },
             [
                 {
                     '$set': {
                         'chat_history': {
                             '$concatArrays': [
-                                {'$slice': ['$chat_history', {'$subtract': [{'$size': '$chat_history'}, 1]}]},
-                                [{
-                                    '$mergeObjects': [
-                                        {'$arrayElemAt': ['$chat_history', {'$subtract': [{'$size': '$chat_history'}, 1]}]},
-                                        {
-                                            'payment_status': 'success',
-                                            'payment_time': now,
-                                            'dispensed_medicine': medicine
-                                        }
+                                {
+                                    '$slice': [
+                                        '$chat_history',
+                                        {'$subtract': [{'$size': '$chat_history'}, 1]}
                                     ]
-                                }]
+                                },
+                                [
+                                    {
+                                        '$mergeObjects': [
+                                            {
+                                                '$arrayElemAt': [
+                                                    '$chat_history',
+                                                    {'$subtract': [{'$size': '$chat_history'}, 1]}
+                                                ]
+                                            },
+                                            {
+                                                'payment_status': 'success',
+                                                'payment_time': now,
+                                                'dispensed_medicine': medicine
+                                            }
+                                        ]
+                                    }
+                                ]
                             ]
                         }
                     }
                 }
             ]
         )
+
         # Print 'y' for successful medicine dispense after payment
         print('y')
-        return jsonify({'success': True, 'message': f'Your payment for {medicine} was successful. Medicine is dispensing.'})
+        try:
+            with serial.Serial('COM3', 9800, timeout=2) as ser:
+                time.sleep(2)
+                ser.write(b'y')
+                print("DEBUG: Sent 'y' to Arduino.")
+        except serial.SerialException as e:
+            print(f"ERROR: Could not write to Arduino: {e}")
+
+        return jsonify({
+            'success': True,
+            'message': f'Your payment for {medicine} was successful. Medicine is dispensing.'
+        })
+
     medicine = request.args.get('medicine', '')
     return render_template('medicine_gateway.html', medicine=medicine)
+
 
 if __name__ == "__main__":
     import signal
