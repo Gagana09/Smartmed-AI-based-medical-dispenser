@@ -24,6 +24,9 @@ client = MongoClient("mongodb://localhost:27017/")
 db = client['IDP']
 users_collection = db['users']
 
+# Make the database available to the application
+app.config['DATABASE'] = db
+
 def filter_longest_medicines(medicine_list):
     normalized = [(med.strip().lower(), med) for med in medicine_list]
     sorted_meds = sorted(normalized, key=lambda x: len(x[0]), reverse=True)
@@ -131,22 +134,115 @@ def get_medicines():
     medicines = list(db.medicines.find({}, {'_id': 0}))
     return jsonify(medicines)
 
+@app.route('/admin/medicines/add', methods=['POST'])
+def add_medicine():
+    data = request.json
+    name = data.get('name')
+    quantity = data.get('quantity', 0)
+    expiry_date = data.get('expiry_date')
+    
+    # Validate input
+    if not name or name.strip() == '':
+        return jsonify({'success': False, 'message': 'Medicine name is required'})
+    
+    # Check if medicine already exists
+    existing_medicine = db.medicines.find_one({'name': name})
+    if existing_medicine:
+        return jsonify({'success': False, 'message': f'Medicine "{name}" already exists'})
+    
+    # Add new medicine
+    new_medicine = {
+        'name': name,
+        'quantity': quantity,
+        'expiry_date': expiry_date
+    }
+    
+    db.medicines.insert_one(new_medicine)
+    
+    return jsonify({'success': True, 'message': f'Medicine "{name}" added successfully'})
+
+@app.route('/admin/medicines/bulk-update', methods=['POST'])
+def bulk_update_medicines():
+    data = request.json
+    updates = data.get('updates', [])
+    
+    if not updates:
+        return jsonify({'success': False, 'message': 'No updates provided'})
+    
+    success_count = 0
+    for update in updates:
+        name = update.get('name')
+        quantity = update.get('quantity')
+        
+        if not name or quantity is None:
+            continue
+        
+        # Update the medicine quantity directly
+        result = db.medicines.update_one(
+            {'name': name}, 
+            {'$set': {'quantity': quantity}}
+        )
+        
+        if result.modified_count > 0:
+            success_count += 1
+    
+    return jsonify({
+        'success': True, 
+        'message': f'Successfully updated {success_count} out of {len(updates)} medicines'
+    })
+
 @app.route('/admin/medicines/update', methods=['POST'])
 def update_medicine_quantity():
     data = request.json
     name = data['name']
-    change = int(data['change'])  # +1 or -1
-    db.medicines.update_one({'name': name}, {'$inc': {'quantity': change}})
+    
+    if 'change' in data:
+        change = int(data['change'])  # +1 or -1
+        
+        # If trying to decrease quantity, check if there's enough
+        if change < 0:
+            medicine = db.medicines.find_one({'name': name})
+            if medicine and medicine.get('quantity', 0) + change < 0:
+                return jsonify({'success': False, 'message': 'Cannot decrease quantity below zero', 'quantity': medicine.get('quantity', 0)})
+        
+        # Update quantity
+        db.medicines.update_one({'name': name}, {'$inc': {'quantity': change}})
+    
+    if 'expiry_date' in data:
+        db.medicines.update_one({'name': name}, {'$set': {'expiry_date': data['expiry_date']}})
+
+    
     med = db.medicines.find_one({'name': name}, {'_id': 0})
+    if med and 'expiry_date' in med:
+        med['expiry_status'] = calculate_expiry_status(med['expiry_date'])
     return jsonify(med)
 
 # --- Update admin_dashboard to pass medicines to template ---
+def calculate_expiry_status(expiry_date):
+    if not expiry_date:
+        return 'valid'
+    
+    today = datetime.datetime.now().date()
+    expiry = datetime.datetime.strptime(expiry_date, '%Y-%m-%d').date()
+    days_until_expiry = (expiry - today).days
+    
+    if days_until_expiry < 0:
+        return 'expired'
+    elif days_until_expiry <= 30:
+        return 'expiring_soon'
+    return 'valid'
+
 @app.route('/admin_dashboard')
 def admin_dashboard():
     # Only allow admin
     if session.get('user', {}).get('role') != 'admin':
         return redirect(url_for('login'))
+    
     medicines = list(db.medicines.find({}, {'_id': 0}))
+    # Calculate expiry status for each medicine
+    for medicine in medicines:
+        expiry_date = medicine.get('expiry_date')
+        medicine['expiry_status'] = calculate_expiry_status(expiry_date)
     # Build user info: username, list of chat sessions (date, symptoms, dispensed)
     users = []
     for user_doc in db.users.find({}, {'username': 1, 'chat_history': 1}):
@@ -202,6 +298,32 @@ def analyze_symptoms():
 @app.route('/confirm_dispense', methods=['POST'])
 def confirm_dispense():
     medicine = request.form.get('medicine', '')
+    
+    # Parse medicine names similar to medicine_gateway
+    med_names = []
+    if medicine.lower().startswith('both '):
+        med_names = [m.strip() for m in medicine[5:].split(' and ')]
+    elif medicine.lower().startswith('all '):
+        med_names = [m.strip() for m in medicine[4:].split(' and ')]
+    elif medicine.lower().endswith(' only'):
+        med_names = [medicine[:-5].strip()]
+    else:
+        med_names = [medicine.strip()]
+    
+    # Check if all medicines are available in sufficient quantity
+    unavailable_meds = []
+    for med in med_names:
+        medicine_doc = db.medicines.find_one({'name': med})
+        if not medicine_doc or medicine_doc.get('quantity', 0) <= 0:
+            unavailable_meds.append(med)
+    
+    if unavailable_meds:
+        # Return error message if any medicine is unavailable
+        error_msg = f"Medicine not available: {', '.join(unavailable_meds)}"
+        flash(error_msg, 'error')
+        return redirect(url_for('user_dashboard'))
+    
+    # If implementation is not complete yet, show a message
     flash(f"Dispense confirmation not implemented yet. You clicked: {medicine}")
     return redirect(url_for('user_dashboard'))
 
@@ -334,6 +456,20 @@ def medicine_gateway():
         else:
             med_names = [medicine.strip()]
 
+        # Check if all medicines are available in sufficient quantity
+        unavailable_meds = []
+        for med in med_names:
+            medicine_doc = db.medicines.find_one({'name': med})
+            if not medicine_doc or medicine_doc.get('quantity', 0) <= 0:
+                unavailable_meds.append(med)
+        
+        if unavailable_meds:
+            # Return error message if any medicine is unavailable
+            error_msg = f"Medicine not available: {', '.join(unavailable_meds)}"
+            flash(error_msg, 'error')
+            return redirect(url_for('user_dashboard'))
+            
+        # If all medicines are available, proceed with dispensing
         for med in med_names:
             db.medicines.update_one({'name': med}, {'$inc': {'quantity': -1}})
 

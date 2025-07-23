@@ -21,6 +21,17 @@
     </header>
     <main>
         <div class="overlay">
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    <div class="flash-messages">
+                        {% for category, message in messages %}
+                            <div class="alert alert-{{ category }}">
+                                {{ message }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+            {% endwith %}
             <!-- Red Flag Disclaimer Modal -->
             <style>
             #red-flag-modal {
@@ -255,13 +266,18 @@
                         botMsg = JSON.stringify(data);
                     }
                     
-                    // Display the message
-                    appendMessage('bot', botMsg);
-                    
-                    // Render options if they exist
-                    if (options && Array.isArray(options)) {
-                        console.log('Rendering options:', options); // Debug log
-                        renderOptions(options);
+                    // Check if it's an error message
+                    if (data.type === 'error') {
+                        appendMessage('bot', botMsg, true); // true for warning/error styling
+                    } else {
+                        // Display the message
+                        appendMessage('bot', botMsg);
+                        
+                        // Render options if they exist
+                        if (options && Array.isArray(options)) {
+                            console.log('Rendering options:', options); // Debug log
+                            renderOptions(options);
+                        }
                     }
                     
                 } catch (error) {

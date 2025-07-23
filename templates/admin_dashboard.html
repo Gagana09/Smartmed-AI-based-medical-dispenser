@@ -23,8 +23,8 @@
       background: rgba(255,255,255,0.92);
       border-radius: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-      width: 320px;
-      min-width: 220px;
+      width: 450px;
+      min-width: 400px;
       max-height: 70vh;
       overflow-y: auto;
       padding: 18px 12px 18px 18px;
@@ -35,8 +35,8 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.08);
       flex: 1;
       padding: 18px 24px;
-      min-width: 320px;
-      max-width: 700px;
+      min-width: 250px;
+      max-width: 500px;
       overflow-y: auto;
     }
     #medicine-table {
@@ -54,9 +54,9 @@
       background: #f7f7f7;
       font-weight: bold;
     }
-    .inc-btn, .dec-btn {
-      padding: 4px 10px;
-      margin: 0 2px;
+    .inc-btn, .dec-btn, .edit-expiry-btn {
+      padding: 6px 12px;
+      margin: 0 3px;
       background: #f7f7f7;
       border: 1px solid #bbb;
       border-radius: 6px;
@@ -64,9 +64,47 @@
       font-weight: bold;
       cursor: pointer;
       transition: background 0.2s;
+      display: inline-block;
     }
-    .inc-btn:hover, .dec-btn:hover {
+    .inc-btn {
+      background: #e8f5e9;
+      border-color: #4caf50;
+      color: #2e7d32;
+    }
+    .dec-btn {
+      background: #ffebee;
+      border-color: #f44336;
+      color: #c62828;
+    }
+    .edit-expiry-btn {
+      background: #e3f2fd;
+      border-color: #2196f3;
+      color: #1565c0;
+    }
+    .inc-btn:hover, .dec-btn:hover, .edit-expiry-btn:hover {
       background: #e0e0e0;
+      transform: scale(1.05);
+    }
+    .warning {
+      color: #ff9900;
+      font-weight: bold;
+    }
+    .danger {
+      color: #ff0000;
+      font-weight: bold;
+    }
+    .valid {
+      color: #00aa00;
+      font-weight: bold;
+    }
+    .expiring-soon {
+      background-color: #fff3e0;
+    }
+    .expired {
+      background-color: #ffebee;
+    }
+    .status {
+      white-space: nowrap;
     }
     .user-card {
       background: #fff;
@@ -105,22 +143,42 @@
       <div class="dashboard-container">
         <section class="medicine-panel">
           <h2 style="margin-top:0;">Medicine Inventory</h2>
+          <div class="medicine-actions" style="margin-bottom: 15px; display: flex; gap: 10px;">
+            <button id="add-medicine-btn" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Add New Medicine</button>
+            <button id="bulk-update-btn" style="background-color: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Bulk Update</button>
+          </div>
+          <div class="info-box" style="background-color: #e3f2fd; border: 1px solid #2196F3; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
+            <p style="margin: 0; font-size: 0.9em;"><strong>Tip:</strong> Use the <span style="color: #2e7d32;">+</span> and <span style="color: #c62828;">-</span> buttons to adjust quantities. Click the <span style="color: #1565c0;">📅</span> button to update expiry dates.</p>
+          </div>
           <table id="medicine-table">
             <thead>
               <tr>
                 <th>Medicine Name</th>
                 <th>Qty</th>
+                <th>Expiry Date</th>
+                <th>Status</th>
                 <th>Actions</th>
               </tr>
             </thead>
             <tbody>
               {% for med in medicines %}
-              <tr data-name="{{ med.name }}">
+              <tr data-name="{{ med.name }}" {% if med.expiry_status == 'expiring_soon' %}class="expiring-soon"{% elif med.expiry_status == 'expired' %}class="expired"{% endif %}>
                 <td>{{ med.name }}</td>
                 <td class="quantity">{{ med.quantity }}</td>
-                <td>
-                  <button class="inc-btn">+</button>
-                  <button class="dec-btn">-</button>
+                <td>{{ med.expiry_date }}</td>
+                <td class="status">
+                  {% if med.expiry_status == 'expiring_soon' %}
+                    <span class="warning">⚠️ Expiring Soon</span>
+                  {% elif med.expiry_status == 'expired' %}
+                    <span class="danger">❌ Expired</span>
+                  {% else %}
+                    <span class="valid">✓ Valid</span>
+                  {% endif %}
+                </td>
+                <td style="white-space: nowrap; min-width: 120px;">
+                  <button class="inc-btn" title="Increase Quantity">+</button>
+                  <button class="dec-btn" title="Decrease Quantity">-</button>
+                  <button class="edit-expiry-btn" title="Edit Expiry Date">📅</button>
                 </td>
               </tr>
               {% endfor %}
@@ -154,6 +212,206 @@
     </main>
     <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Add new medicine functionality
+        document.getElementById('add-medicine-btn').addEventListener('click', function() {
+            // Create a modal dialog for adding a new medicine
+            const modalHtml = `
+                <div id="add-medicine-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                    <div style="background-color: white; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%;">
+                        <h3 style="margin-top: 0;">Add New Medicine</h3>
+                        <div style="margin-bottom: 15px;">
+                            <label for="new-medicine-name" style="display: block; margin-bottom: 5px;">Medicine Name:</label>
+                            <input type="text" id="new-medicine-name" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="new-medicine-quantity" style="display: block; margin-bottom: 5px;">Quantity:</label>
+                            <input type="number" id="new-medicine-quantity" min="0" value="0" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 15px;">
+                            <label for="new-medicine-expiry" style="display: block; margin-bottom: 5px;">Expiry Date (YYYY-MM-DD):</label>
+                            <input type="date" id="new-medicine-expiry" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                        </div>
+                        <div style="display: flex; justify-content: flex-end;">
+                            <button id="cancel-add-medicine" style="background-color: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                            <button id="save-new-medicine" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Save</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Add modal to the document
+            const modalContainer = document.createElement('div');
+            modalContainer.innerHTML = modalHtml;
+            document.body.appendChild(modalContainer.firstElementChild);
+            
+            // Set today's date as the default for the date input
+            const today = new Date();
+            const formattedDate = today.toISOString().split('T')[0];
+            document.getElementById('new-medicine-expiry').value = formattedDate;
+            
+            // Handle cancel button
+            document.getElementById('cancel-add-medicine').addEventListener('click', function() {
+                document.getElementById('add-medicine-modal').remove();
+            });
+            
+            // Handle save button
+             document.getElementById('save-new-medicine').addEventListener('click', function() {
+                 const name = document.getElementById('new-medicine-name').value.trim();
+                 const quantity = parseInt(document.getElementById('new-medicine-quantity').value) || 0;
+                 const expiryDate = document.getElementById('new-medicine-expiry').value;
+                 
+                 if (!name) {
+                     alert('Please enter a medicine name');
+                     return;
+                 }
+                 
+                 // Send data to server
+                 fetch('/admin/medicines/add', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ 
+                         name: name, 
+                         quantity: quantity,
+                         expiry_date: expiryDate
+                     })
+                 })
+                 .then(res => res.json())
+                 .then(data => {
+                     if (data.success) {
+                         // Reload the page to show the updated inventory
+                         window.location.reload();
+                     } else {
+                         alert(data.message || 'Failed to add medicine');
+                     }
+                 })
+                 .catch(err => {
+                     console.error('Error adding medicine:', err);
+                     alert('An error occurred while adding the medicine');
+                 });
+
+         // Bulk update functionality
+         document.getElementById('bulk-update-btn').addEventListener('click', function() {
+             // Get all medicines from the table
+             const medicines = [];
+             document.querySelectorAll('#medicine-table tbody tr').forEach(row => {
+                 const name = row.getAttribute('data-name');
+                 const currentQty = parseInt(row.querySelector('.quantity').textContent) || 0;
+                 medicines.push({ name, quantity: currentQty });
+             });
+             
+             if (medicines.length === 0) {
+                 alert('No medicines found to update');
+                 return;
+             }
+             
+             // Create a modal dialog for bulk updating
+             let medicineRows = '';
+             medicines.forEach(med => {
+                 medicineRows += `
+                     <tr>
+                         <td>${med.name}</td>
+                         <td><input type="number" min="0" value="${med.quantity}" class="bulk-qty" data-name="${med.name}" style="width: 80px; padding: 5px;"></td>
+                     </tr>
+                 `;
+             });
+             
+             const modalHtml = `
+                 <div id="bulk-update-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
+                     <div style="background-color: white; padding: 20px; border-radius: 8px; width: 500px; max-width: 90%; max-height: 90vh; overflow-y: auto;">
+                         <h3 style="margin-top: 0;">Bulk Update Medicine Quantities</h3>
+                         <table style="width: 100%; border-collapse: collapse; margin-bottom: 15px;">
+                             <thead>
+                                 <tr>
+                                     <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Medicine Name</th>
+                                     <th style="text-align: left; padding: 8px; border-bottom: 1px solid #ddd;">Quantity</th>
+                                 </tr>
+                             </thead>
+                             <tbody>
+                                 ${medicineRows}
+                             </tbody>
+                         </table>
+                         <div style="display: flex; justify-content: flex-end;">
+                             <button id="cancel-bulk-update" style="background-color: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
+                             <button id="save-bulk-update" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Save All</button>
+                         </div>
+                     </div>
+                 </div>
+             `;
+             
+             // Add modal to the document
+             const modalContainer = document.createElement('div');
+             modalContainer.innerHTML = modalHtml;
+             document.body.appendChild(modalContainer.firstElementChild);
+             
+             // Handle cancel button
+             document.getElementById('cancel-bulk-update').addEventListener('click', function() {
+                 document.getElementById('bulk-update-modal').remove();
+             });
+             
+             // Handle save button
+             document.getElementById('save-bulk-update').addEventListener('click', function() {
+                 const updates = [];
+                 document.querySelectorAll('.bulk-qty').forEach(input => {
+                     const name = input.getAttribute('data-name');
+                     const newQty = parseInt(input.value) || 0;
+                     updates.push({ name, quantity: newQty });
+                 });
+                 
+                 // Send data to server
+                 fetch('/admin/medicines/bulk-update', {
+                     method: 'POST',
+                     headers: { 'Content-Type': 'application/json' },
+                     body: JSON.stringify({ updates })
+                 })
+                 .then(res => res.json())
+                 .then(data => {
+                     if (data.success) {
+                         // Reload the page to show the updated inventory
+                         window.location.reload();
+                     } else {
+                         alert(data.message || 'Failed to update medicines');
+                     }
+                 })
+                 .catch(err => {
+                     console.error('Error updating medicines:', err);
+                     alert('An error occurred while updating the medicines');
+                 });
+             });
+         });
+             });
+        });
+        
+        function updateExpiryDate(name, expiryDate, row) {
+            fetch('/admin/medicines/update', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, expiry_date: expiryDate })
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data) {
+                    row.querySelector('td:nth-child(3)').textContent = data.expiry_date || '';
+                    
+                    // Update status cell
+                    const statusCell = row.querySelector('.status');
+                    let statusHTML = '<span class="valid">✓ Valid</span>';
+                    
+                    if (data.expiry_status === 'expiring_soon') {
+                        statusHTML = '<span class="warning">⚠️ Expiring Soon</span>';
+                        row.classList.add('expiring-soon');
+                        row.classList.remove('expired');
+                    } else if (data.expiry_status === 'expired') {
+                        statusHTML = '<span class="danger">❌ Expired</span>';
+                        row.classList.add('expired');
+                        row.classList.remove('expiring-soon');
+                    } else {
+                        row.classList.remove('expiring-soon', 'expired');
+                    }
+                    
+                    statusCell.innerHTML = statusHTML;
+                }
+            });
+        }
         function updateQuantity(name, change, row) {
             fetch('/admin/medicines/update', {
                 method: 'POST',
@@ -164,7 +422,16 @@
             .then(data => {
                 if (data && typeof data.quantity !== 'undefined') {
                     row.querySelector('.quantity').textContent = data.quantity;
+                    
+                    // Show error message if operation failed
+                    if (data.success === false && data.message) {
+                        alert(data.message);
+                    }
                 }
+            })
+            .catch(err => {
+                console.error('Error updating quantity:', err);
+                alert('An error occurred while updating the medicine quantity');
             });
         }
         document.querySelectorAll('.inc-btn').forEach(btn => {
@@ -174,6 +441,21 @@
                 updateQuantity(name, 1, row);
             });
         });
+        document.querySelectorAll('.edit-expiry-btn').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const row = this.closest('tr');
+                const name = row.getAttribute('data-name');
+                const currentDate = row.querySelector('td:nth-child(3)').textContent;
+                
+                const newDate = prompt('Enter new expiry date (YYYY-MM-DD):', currentDate);
+                if (newDate && /^\d{4}-\d{2}-\d{2}$/.test(newDate)) {
+                    updateExpiryDate(name, newDate, row);
+                } else if (newDate) {
+                    alert('Please use the format YYYY-MM-DD');
+                }
+            });
+        });
+
         document.querySelectorAll('.dec-btn').forEach(btn => {
             btn.addEventListener('click', function() {
                 const row = this.closest('tr');

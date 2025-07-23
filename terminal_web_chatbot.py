@@ -5,7 +5,7 @@ import re
 import difflib
 import string
 
-DATASET_PATH = r"C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx"
+DATASET_PATH = "dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
 GENDER_OPTIONS = ["Male", "Female"]
@@ -808,7 +808,33 @@ class TerminalStyleWebChatbot:
                 s['step'] = 'done'
                 return 'OK, thank you. Take care.'
             else:
-                # Redirect to medicine gateway for payment
-                return {'redirect': f"/medicine_gateway?medicine={s['dispense_selection']}"}
+                # Check medicine availability before redirecting to payment
+                med_names = []
+                selection = s['dispense_selection']
+                if selection.lower().startswith('both '):
+                    med_names = [m.strip() for m in selection[5:].split(' and ')]
+                elif selection.lower().startswith('all '):
+                    med_names = [m.strip() for m in selection[4:].split(' and ')]
+                elif selection.lower().endswith(' only'):
+                    med_names = [selection[:-5].strip()]
+                else:
+                    med_names = [selection.strip()]
+                
+                # Check if any medicine is unavailable (this will be verified again in medicine_gateway)
+                from flask import current_app
+                db = current_app.config['DATABASE']
+                unavailable_meds = []
+                for med in med_names:
+                    medicine_doc = db.medicines.find_one({'name': med})
+                    if not medicine_doc or medicine_doc.get('quantity', 0) <= 0:
+                        unavailable_meds.append(med)
+                
+                if unavailable_meds:
+                    # Return error message if any medicine is unavailable
+                    error_msg = f"Medicine not available: {', '.join(unavailable_meds)}"
+                    return {"response": error_msg, "type": "error"}
+                else:
+                    # Redirect to medicine gateway for payment
+                    return {'redirect': f"/medicine_gateway?medicine={s['dispense_selection']}"}
         else:
             return {"response": "Please select a valid option:", "options": s['dispense_options'], "type": "medicine"}
