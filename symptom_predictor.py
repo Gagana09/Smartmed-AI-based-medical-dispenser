@@ -9,6 +9,9 @@ from sklearn.metrics import roc_auc_score, f1_score
 from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
 import warnings
+import json
+import os
+from datetime import datetime
 warnings.filterwarnings('ignore')
 
 SYMPTOMS = [
@@ -21,8 +24,9 @@ class SymptomPredictor:
     ML-based predictor for symptom co-occurrence and ranking.
     Trains on a CSV with symptom columns and provides methods to predict next best symptom to ask.
     Benchmarks multiple models and uses the best one for predictions.
+    Now includes real-time learning from user interactions.
     """
-    def __init__(self):
+    def __init__(self, real_time_learning=True):
         self.model = None
         self.model_type = None
         self.symptom_columns = SYMPTOMS
@@ -30,21 +34,128 @@ class SymptomPredictor:
         self.feature_importances_ = None
         self.association_rules_ = None
         self.benchmark_scores_ = {}
+        
+        # Real-time learning components
+        self.real_time_learning = real_time_learning
+        self.user_interactions = []
+        self.interaction_file = "user_interactions.json"
+        self.min_interactions_for_retrain = 2  # Retrain every 2 user interactions
+        self.last_retrain_count = 0
+        
+        # Load existing interactions if available
+        self._load_user_interactions()
 
-    def train_on_csv(self, csv_path: str):
+    def _load_user_interactions(self):
+        """Load existing user interactions from file"""
+        if os.path.exists(self.interaction_file):
+            try:
+                with open(self.interaction_file, 'r') as f:
+                    self.user_interactions = json.load(f)
+                print(f"Loaded {len(self.user_interactions)} existing user interactions")
+            except Exception as e:
+                print(f"Error loading user interactions: {e}")
+                self.user_interactions = []
+
+    def _save_user_interactions(self):
+        """Save user interactions to file"""
+        try:
+            with open(self.interaction_file, 'w') as f:
+                json.dump(self.user_interactions, f, indent=2)
+        except Exception as e:
+            print(f"Error saving user interactions: {e}")
+
+    def add_user_interaction(self, demographics: Dict[str, str], symptoms: Dict[str, str], 
+                           final_recommendation: str = None, success_rating: int = None):
         """
-        Trains the ML model(s) on the given CSV file for symptom co-occurrence analysis.
-        Benchmarks Association Rules, Logistic Regression, Decision Tree, and Naive Bayes.
-        Selects the best model based on mean ROC-AUC or F1 score.
+        Add a new user interaction for real-time learning.
+        
+        Args:
+            demographics: User demographics (age, gender, weight)
+            symptoms: Final symptom profile (symptom: Yes/No)
+            final_recommendation: What was recommended
+            success_rating: User rating 1-5 (optional)
         """
-        df = pd.read_csv(csv_path) if csv_path.endswith('.csv') else pd.read_excel(csv_path, engine="openpyxl")
+        if not self.real_time_learning:
+            return
+            
+        interaction = {
+            'timestamp': datetime.now().isoformat(),
+            'demographics': demographics,
+            'symptoms': symptoms,
+            'recommendation': final_recommendation,
+            'success_rating': success_rating
+        }
+        
+        self.user_interactions.append(interaction)
+        self._save_user_interactions()
+        
+        # Check if we should retrain
+        if len(self.user_interactions) >= self.min_interactions_for_retrain and \
+           len(self.user_interactions) > self.last_retrain_count:
+            self._retrain_with_user_data()
+
+    def _retrain_with_user_data(self):
+        """Retrain models with accumulated user interaction data"""
+        if len(self.user_interactions) < self.min_interactions_for_retrain:
+            return
+            
+        print(f"Retraining models with {len(self.user_interactions)} user interactions...")
+        
+        # Convert user interactions to training data
+        new_data = []
+        for interaction in self.user_interactions:
+            row = {}
+            # Add demographics
+            row.update(interaction['demographics'])
+            # Add symptoms
+            row.update(interaction['symptoms'])
+            new_data.append(row)
+        
+        if len(new_data) < 2:  # Need minimum 2 interactions for meaningful training
+            return
+            
+        # Create temporary CSV for retraining
+        temp_df = pd.DataFrame(new_data)
+        temp_file = "temp_user_data.csv"
+        temp_df.to_csv(temp_file, index=False)
+        
+        try:
+            # Retrain with combined data (original + user data)
+            self._retrain_models(temp_file)
+            self.last_retrain_count = len(self.user_interactions)
+            print("Real-time retraining completed successfully!")
+        except Exception as e:
+            print(f"Error during real-time retraining: {e}")
+        finally:
+            # Clean up temporary file
+            if os.path.exists(temp_file):
+                os.remove(temp_file)
+
+    def _retrain_models(self, additional_data_path: str):
+        """Retrain models with additional user data"""
+        # Load original data
+        original_df = pd.read_csv(self.original_data_path) if hasattr(self, 'original_data_path') else None
+        
+        # Load new user data
+        user_df = pd.read_csv(additional_data_path)
+        
+        # Combine datasets
+        if original_df is not None:
+            combined_df = pd.concat([original_df, user_df], ignore_index=True)
+        else:
+            combined_df = user_df
+        
+        # Retrain using the combined data
+        self._train_on_dataframe(combined_df)
+
+    def _train_on_dataframe(self, df: pd.DataFrame):
+        """Internal method to train on a DataFrame"""
         # Only use the 9 primary symptom columns for ML
         X = df[self.symptom_columns].fillna("No").apply(lambda col: col.map(lambda x: str(x).strip().lower() == "yes"))
         X = X.astype(int)
         y = X.copy()  # Multi-label: each symptom is a target
 
         # 1. Association Rules (mlxtend)
-        # Prepare transactions for apriori
         transactions = X.apply(lambda row: [col for col in X.columns if row[col] == 1], axis=1).tolist()
         te = TransactionEncoder()
         te_ary = te.fit(transactions).transform(transactions)
@@ -52,7 +163,6 @@ class SymptomPredictor:
         frequent_itemsets = apriori(df_apriori, min_support=0.01, use_colnames=True)
         assoc_rules = association_rules(frequent_itemsets, metric="confidence", min_threshold=0.1)
         self.association_rules_ = assoc_rules
-        # Association rules don't have ROC-AUC, so we use coverage of rules as a proxy
         assoc_score = assoc_rules.shape[0]
         self.benchmark_scores_["association_rules"] = assoc_score
 
@@ -89,22 +199,43 @@ class SymptomPredictor:
         # Pick the best model
         best_model_type = max(self.benchmark_scores_, key=self.benchmark_scores_.get)
         self.model_type = best_model_type
+        
         if best_model_type == "logistic_regression":
             self.model = lr
-            # Feature importances: mean absolute value of coefficients
             self.feature_importances_ = np.mean(np.abs(lr.estimators_[0].coef_), axis=0)
         elif best_model_type == "decision_tree":
             self.model = dt
-            # Feature importances: mean of feature_importances_ across estimators
             self.feature_importances_ = np.mean([est.feature_importances_ for est in dt.estimators_], axis=0)
         elif best_model_type == "naive_bayes":
             self.model = nb
-            # Feature importances: mean of class_log_prior_ (not very interpretable)
             self.feature_importances_ = np.mean([est.class_log_prior_ for est in nb.estimators_], axis=0)
         else:
-            self.model = None  # Association rules are not a scikit-learn model
+            self.model = None
             self.feature_importances_ = None
+            
         self.trained = True
+
+    def train_on_csv(self, csv_path: str):
+        """
+        Trains the ML model(s) on the given CSV file for symptom co-occurrence analysis.
+        Benchmarks Association Rules, Logistic Regression, Decision Tree, and Naive Bayes.
+        Selects the best model based on mean ROC-AUC or F1 score.
+        """
+        self.original_data_path = csv_path  # Store for retraining
+        df = pd.read_csv(csv_path) if csv_path.endswith('.csv') else pd.read_excel(csv_path, engine="openpyxl")
+        self._train_on_dataframe(df)
+
+    def get_learning_stats(self) -> Dict[str, Any]:
+        """Get statistics about the real-time learning system"""
+        return {
+            'total_interactions': len(self.user_interactions),
+            'real_time_learning_enabled': self.real_time_learning,
+            'min_interactions_for_retrain': self.min_interactions_for_retrain,
+            'last_retrain_count': self.last_retrain_count,
+            'model_type': self.model_type,
+            'benchmark_scores': self.benchmark_scores_,
+            'trained': self.trained
+        }
 
     def predict_symptom_probabilities(self, current_symptoms: Dict[str, str], demographics: Dict[str, str]) -> Dict[str, float]:
         """

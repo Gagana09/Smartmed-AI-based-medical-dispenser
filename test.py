@@ -4,7 +4,7 @@ from collections import Counter
 from symptom_checker import SymptomChecker
 
 # Load your dataset from Excel file
-file_path = r'C:\Users\Supriya S\OneDrive\Desktop\IDP\dataset_1.xlsx'
+file_path = r'C:\Users\supri\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx'
 
 try:
     df = pd.read_excel(file_path)

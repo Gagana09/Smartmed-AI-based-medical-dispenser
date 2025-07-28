@@ -532,6 +532,67 @@ def medicine_gateway():
     medicine = request.args.get('medicine', '')
     return render_template('medicine_gateway.html', medicine=medicine)
 
+@app.route('/admin/learning-stats', methods=['GET'])
+def get_learning_stats():
+    """Get real-time learning statistics"""
+    try:
+        # Import here to avoid circular imports
+        from symptom_predictor import SymptomPredictor
+        from chat import DATASET_PATH
+        
+        predictor = SymptomPredictor(real_time_learning=True)
+        predictor.train_on_csv(DATASET_PATH)
+        
+        stats = predictor.get_learning_stats()
+        
+        # Format for display
+        formatted_stats = {
+            'total_interactions': stats['total_interactions'],
+            'real_time_learning_enabled': stats['real_time_learning_enabled'],
+            'min_interactions_for_retrain': stats['min_interactions_for_retrain'],
+            'last_retrain_count': stats['last_retrain_count'],
+            'model_type': stats['model_type'],
+            'benchmark_scores': stats['benchmark_scores'],
+            'trained': stats['trained'],
+            'learning_progress': f"{stats['total_interactions']}/{stats['min_interactions_for_retrain']} interactions for next retrain"
+        }
+        
+        return jsonify(formatted_stats)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/user-interactions', methods=['GET'])
+def get_user_interactions():
+    """Get recent user interactions for analysis"""
+    try:
+        import json
+        import os
+        
+        interaction_file = "user_interactions.json"
+        if os.path.exists(interaction_file):
+            with open(interaction_file, 'r') as f:
+                interactions = json.load(f)
+            
+            # Return last 20 interactions
+            recent_interactions = interactions[-20:] if len(interactions) > 20 else interactions
+            
+            return jsonify({
+                'total_interactions': len(interactions),
+                'recent_interactions': recent_interactions
+            })
+        else:
+            return jsonify({
+                'total_interactions': 0,
+                'recent_interactions': []
+            })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/admin/learning-dashboard')
+def learning_dashboard():
+    """Admin dashboard for monitoring real-time learning"""
+    return render_template('learning_dashboard.html')
+
 
 if __name__ == "__main__":
     import signal

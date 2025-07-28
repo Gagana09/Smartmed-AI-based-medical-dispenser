@@ -1,6 +1,8 @@
 import pandas as pd
 from symptom_predictor import SymptomPredictor, SYMPTOMS
 from symptom_checker import SymptomChecker
+import json
+from datetime import datetime
 
 # --- CONFIG ---
 DATASET_PATH = r"C:/Users/Supriya S/OneDrive/Desktop/IDP/dataset_1.xlsx"
@@ -30,7 +32,7 @@ def main():
         if col in df.columns:
             df[col] = df[col].apply(normalize_title_case)
 
-    predictor = SymptomPredictor()
+    predictor = SymptomPredictor(real_time_learning=True)  # Enable real-time learning
     predictor.train_on_csv(DATASET_PATH)
 
     print("Hello! I'm your SmartMed Assistant 🤖. Let's find out the right treatment for you.")
@@ -98,8 +100,8 @@ def main():
         unasked = [s for s in symptom_list if s not in asked]
         if not unasked:
             break
-        ranked = predictor.get_next_symptom_priority(user_flags, unasked)
-        ranked = [(s, p) for s, p in ranked if p >= 0.1]
+        ranked = predictor.get_next_best_symptom(user_flags, unasked, {"Age": age_bucket, "Gender": gender, "Weight": weight_bucket})
+        ranked = [(s['symptom'], s['probability']) for s in ranked if s['probability'] >= 0.1]
         if not ranked:
             break
         next_sym, prob = ranked[0]
@@ -125,47 +127,85 @@ def main():
     # Follow-up questions - only ask valid questions (skip empty or "–")
     valid_questions_asked = 0
     for i in range(1, 5):
-        q_col = f"Follow up question {i}"
-        a_col = f"Answer {i}"
-        q = row[q_col] if q_col in row and pd.notna(row[q_col]) and str(row[q_col]).strip() != "" and str(row[q_col]).strip() != "–" else None
-        a = row[a_col] if a_col in row and pd.notna(row[a_col]) and str(row[a_col]).strip() != "" else None
-        
-        if q:  # Only process if question is valid
+        question_col = f"Follow up question {i}"
+        if question_col in row and pd.notna(row[question_col]) and str(row[question_col]).strip() not in ["", "–", "nan"]:
+            question = str(row[question_col]).strip()
+            answer = ask(f"{question} (Yes/No)")
+            while answer.title() not in ["Yes", "No"]:
+                answer = ask("Please answer Yes or No.")
             valid_questions_asked += 1
-            if i == 1:
-                print(f"{q}\nAnswer: {a if a else ''}")
-            elif i == 2:
-                print(f"{q}\nAnswer: {a if a else ''}")
-            elif i in [3, 4]:
-                print(q)
-                if i == 3:
-                    user_a = ask("Your answer:")
-        elif valid_questions_asked == 0 and i == 2:
-            # If no valid questions found by question 2, break and go to recommendation
+        if valid_questions_asked >= 2:  # Limit to 2 follow-up questions
             break
 
     # Final recommendation
-    print("\nBased on your profile and symptoms:")
-    print("→ Recommendation:", row["OTC/Doc"] if "OTC/Doc" in row else row["Otc/Doc"])
+    recommendation = row.get("Recommendation", "Please consult a doctor for proper diagnosis.")
+    print(f"\nBased on your symptoms, I recommend:\n{recommendation}")
+    
+    # Collect feedback for real-time learning
+    try:
+        rating = int(ask("\nHow helpful was this recommendation? (1-5, where 5 is very helpful): "))
+        if 1 <= rating <= 5:
+            # Add interaction to real-time learning system
+            demographics = {"Age": age_bucket, "Gender": gender, "Weight": weight_bucket}
+            predictor.add_user_interaction(
+                demographics=demographics,
+                symptoms=user_flags,
+                final_recommendation=recommendation,
+                success_rating=rating
+            )
+            print("Thank you for your feedback! This helps improve the system.")
+        else:
+            print("Invalid rating. Feedback not recorded.")
+    except ValueError:
+        print("Invalid input. Feedback not recorded.")
+    
+    # Show learning stats
+    stats = predictor.get_learning_stats()
+    print(f"\nLearning System Stats:")
+    print(f"- Total interactions: {stats['total_interactions']}")
+    print(f"- Model type: {stats['model_type']}")
+    print(f"- Real-time learning: {'Enabled' if stats['real_time_learning_enabled'] else 'Disabled'}")
 
 class MedicalChatbot:
     def __init__(self, csv_path='dataset_1.xlsx'):
+        self.df = pd.read_excel(csv_path, engine="openpyxl")
+        # Normalize relevant columns to title case for case-insensitive matching
+        for col in ["Gender", "Age", "Weight"] + SYMPTOMS:
+            if col in self.df.columns:
+                self.df[col] = self.df[col].apply(normalize_title_case)
+        
+        # Initialize with real-time learning enabled
+        self.predictor = SymptomPredictor(real_time_learning=True)
+        self.predictor.train_on_csv(csv_path)
+        
         self.checker = SymptomChecker(csv_path)
+        self.checker.predictor = self.predictor  # Use the same predictor instance
+        
+        # State management
         self.state = {
             'step': 'demographics',
             'demographics': {},
             'symptoms': {},
-            'available_symptoms': self.checker.available_symptoms.copy(),
-            'followup_answers': {},
+            'available_symptoms': SYMPTOMS.copy(),
             'asked_followups': set(),
-            'matched_rows': None,
+            'followup_answers': {},
             'last_question': None,
-            'symptom_queue': [],
+            'final_recommendation': None,
+            'session_start_time': datetime.now().isoformat()
         }
+        
+        # Real-time learning tracking
+        self.interaction_data = {
+            'session_id': datetime.now().strftime('%Y%m%d_%H%M%S'),
+            'questions_asked': [],
+            'symptom_confidence_scores': [],
+            'final_outcome': None
+        }
+        
         self._demographic_questions = [
-            'What is your age (in years)?',
-            'What is your weight (in kg)?',
-            'What is your gender? (Male/Female):'
+            "What is your age? (18-80)",
+            "What is your weight (in kg)? (40-300)",
+            "What is your gender? (Male/Female)"
         ]
         self._demographic_keys = ['Age', 'Weight', 'Gender']
         self._demographic_index = 0
@@ -175,6 +215,9 @@ class MedicalChatbot:
         self._final_recommendation = None
 
     def get_response(self, user_input):
+        # Track interaction for learning
+        self._track_interaction(user_input)
+        
         # Demographics collection
         if self.state['step'] == 'demographics':
             greetings = {'hi', 'hello', 'hey', 'greetings', ''}
@@ -192,7 +235,7 @@ class MedicalChatbot:
                                 break
                         if not age_bucket:
                             return "Sorry, age not supported. Please consult a doctor."
-                        self.state['demographics']['Age'] = [age_bucket]
+                        self.state['demographics']['Age'] = age_bucket
                         self._demographic_index += 1
                         return self._demographic_questions[self._demographic_index]
                     except:
@@ -200,7 +243,6 @@ class MedicalChatbot:
                 elif key == 'Weight':
                     try:
                         weight = float(user_input)
-                        WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]
                         weight_bucket = None
                         for low, high, label in WEIGHT_BUCKETS:
                             if low <= weight <= high:
@@ -258,6 +300,15 @@ class MedicalChatbot:
             # ML symptom ranking
             ranked = self.checker.predictor.get_next_best_symptom(self.state['symptoms'], self.state['available_symptoms'], self.state['demographics'])
             self._symptom_ranking = ranked
+            
+            # Track confidence scores for learning
+            if ranked:
+                self.interaction_data['symptom_confidence_scores'].append({
+                    'symptom': ranked[0]['symptom'],
+                    'confidence': ranked[0]['probability'],
+                    'timestamp': datetime.now().isoformat()
+                })
+            
             if not ranked or ranked[0]['probability'] < 0.1:
                 # Mark all remaining symptoms as No
                 for s in self.state['available_symptoms']:
@@ -294,6 +345,14 @@ class MedicalChatbot:
 
         return "Sorry, I didn't understand."
 
+    def _track_interaction(self, user_input):
+        """Track user interactions for real-time learning"""
+        self.interaction_data['questions_asked'].append({
+            'input': user_input,
+            'step': self.state['step'],
+            'timestamp': datetime.now().isoformat()
+        })
+
     def _next_followup_question(self):
         # Get all unique follow-up questions from matched rows
         if self.checker.matched_rows is None or self.checker.matched_rows.empty:
@@ -303,52 +362,59 @@ class MedicalChatbot:
         answer_cols = [f"Answer {i}" for i in range(1, 4)]
         asked = self.state['asked_followups']
         
-        # Collect all valid follow-up questions from matched rows
-        valid_questions = []
-        for idx, row in self.checker.matched_rows.iterrows():
-            for i, fq_col in enumerate(followup_cols):
-                fq = row.get(fq_col, None)
-                # Skip empty, NaN, or invalid questions (like "–")
-                if pd.isna(fq) or not str(fq).strip() or str(fq).strip() == '–':
-                    continue
-                fq_key = fq.strip().lower()
-                if fq_key not in asked:
-                    valid_questions.append((i, fq_col, fq, answer_cols[i] if i < 3 else None))
-                    asked.add(fq_key)
+        # Find next unasked follow-up question
+        for col in followup_cols:
+            if col in self.checker.matched_rows.columns:
+                unique_questions = self.checker.matched_rows[col].dropna().unique()
+                for question in unique_questions:
+                    if question not in asked and str(question).strip() not in ["", "–", "nan"]:
+                        self.state['asked_followups'].add(question)
+                        self.state['last_question'] = question
+                        return str(question).strip()
         
-        # Return the first valid question
-        if valid_questions:
-            i, fq_col, fq, ans_col = valid_questions[0]
-            self.state['last_question'] = ans_col
-            return fq
-        
-        # After all follow-ups
-        self.state['last_question'] = None
+        # No more follow-up questions
+        self.state['step'] = 'recommendation'
         return None
 
     def get_recommendation(self):
         # Store follow-up answers in checker
         self.checker.followup_answers = self.state['followup_answers']
-        rec = self.checker.find_exact_match()
-        self.state['step'] = 'done'
-        model_type = self.checker.predictor.model_type
-        return f"{rec}\n[ML Model Used: {model_type}]"
+        
+        # Get recommendation
+        recommendation = self.checker.get_recommendation()
+        self.state['final_recommendation'] = recommendation
+        
+        # Add interaction to real-time learning system
+        self.predictor.add_user_interaction(
+            demographics=self.state['demographics'],
+            symptoms=self.state['symptoms'],
+            final_recommendation=recommendation
+        )
+        
+        # Update interaction data
+        self.interaction_data['final_outcome'] = {
+            'recommendation': recommendation,
+            'symptoms': self.state['symptoms'],
+            'demographics': self.state['demographics'],
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        return recommendation
 
     def get_greeting(self):
-        return "Hello! I'm your medical assistant. Please tell me your age (in years) to get started."
+        return "Hello! I'm your SmartMed Assistant 🤖. Let's find out the right treatment for you. What is your age? (18-80)"
 
     def get_serializable_state(self):
         # Only needed for final storage, not for every step
-        serializable_state = self.state.copy()
-        if 'asked_followups' in serializable_state and isinstance(serializable_state['asked_followups'], set):
-            serializable_state['asked_followups'] = list(serializable_state['asked_followups'])
-        return serializable_state
+        return {
+            'session_id': self.interaction_data['session_id'],
+            'final_recommendation': self.state['final_recommendation'],
+            'learning_stats': self.predictor.get_learning_stats()
+        }
 
     def restore_state(self, state):
         # Only needed for initial session setup, not for every step
-        self.state = state
-        if 'asked_followups' in self.state and isinstance(self.state['asked_followups'], list):
-            self.state['asked_followups'] = set(self.state['asked_followups'])
+        pass
 
 if __name__ == "__main__":
     bot_instance = MedicalChatbot(csv_path='dataset_1.xlsx')
