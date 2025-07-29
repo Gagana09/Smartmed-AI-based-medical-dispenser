@@ -244,14 +244,55 @@ class TerminalStyleWebChatbot:
             s['step'] = 'ask_main_symptom'
             return "Which of these symptoms do you have: " + ", ".join(s['symptom_list'])
         if s['step'] == 'ask_main_symptom':
-            user_symptom = user_input.strip()
+            user_symptom = user_input.strip().lower()
             main_symptom = None
+            
+            # 🔄 IMPROVED: Better symptom matching with variations
             for sym in s['symptom_list']:
-                if sym.lower() in user_symptom.lower():
+                sym_lower = sym.lower()
+                # Check if user input contains symptom or vice versa
+                if (user_symptom in sym_lower or sym_lower in user_symptom or 
+                    any(word in sym_lower for word in user_symptom.split()) or
+                    any(word in user_symptom for word in sym_lower.split())):
                     main_symptom = sym
                     break
+            
+            # Additional common variations
+            if not main_symptom:
+                variations = {
+                    'cold': 'Common Cold',
+                    'flu': 'Common Cold', 
+                    'fever': 'Fever',
+                    'temperature': 'Fever',
+                    'cough': 'Cough',
+                    'coughing': 'Cough',
+                    'pain': 'Body Pain',
+                    'bodyache': 'Body Pain',
+                    'body ache': 'Body Pain',
+                    'headache': 'Headache',
+                    'head pain': 'Headache',
+                    'migraine': 'Headache',
+                    'sprain': 'Sprain',
+                    'twist': 'Sprain',
+                    'indigestion': 'Indigestion',
+                    'upset stomach': 'Indigestion',
+                    'toothache': 'Toothache',
+                    'tooth pain': 'Toothache',
+                    'dental pain': 'Toothache'
+                }
+                main_symptom = variations.get(user_symptom)
+            
+            # 🔄 NEW: Handle spelling mistakes with fuzzy matching
+            if not main_symptom:
+                main_symptom = self._fuzzy_match_symptom(user_symptom, s['symptom_list'])
+            
             if not main_symptom:
                 return "Sorry, please enter a main symptom from the list: " + ", ".join(s['symptom_list'])
+            
+            # Show what was matched (helpful for user feedback)
+            if user_input.strip().lower() != main_symptom.lower():
+                print(f"✅ Matched '{user_input}' to '{main_symptom}'")
+            
             s['main_symptom'] = main_symptom
             s['user_flags'] = {sym: "No" for sym in s['symptom_list']}
             s['user_flags'][main_symptom] = "Yes"
@@ -784,6 +825,69 @@ class TerminalStyleWebChatbot:
                 if int(parts[0]) <= age <= int(parts[1]):
                     matches.append(bucket)
         return matches 
+
+    def _fuzzy_match_symptom(self, user_input, symptom_list):
+        """
+        Fuzzy matching to handle spelling mistakes and typos
+        """
+        def levenshtein_distance(s1, s2):
+            """Calculate Levenshtein distance between two strings"""
+            if len(s1) < len(s2):
+                return levenshtein_distance(s2, s1)
+            
+            if len(s2) == 0:
+                return len(s1)
+            
+            previous_row = list(range(len(s2) + 1))
+            for i, c1 in enumerate(s1):
+                current_row = [i + 1]
+                for j, c2 in enumerate(s2):
+                    insertions = previous_row[j + 1] + 1
+                    deletions = current_row[j] + 1
+                    substitutions = previous_row[j] + (c1 != c2)
+                    current_row.append(min(insertions, deletions, substitutions))
+                previous_row = current_row
+            
+            return previous_row[-1]
+        
+        def similarity_score(s1, s2):
+            """Calculate similarity score between two strings"""
+            distance = levenshtein_distance(s1.lower(), s2.lower())
+            max_len = max(len(s1), len(s2))
+            if max_len == 0:
+                return 1.0
+            return 1 - (distance / max_len)
+        
+        best_match = None
+        best_score = 0.7  # Minimum similarity threshold (70%)
+        
+        for symptom in symptom_list:
+            # Check each word in the symptom
+            symptom_words = symptom.lower().split()
+            user_words = user_input.split()
+            
+            # Calculate best score for this symptom
+            symptom_score = 0
+            for user_word in user_words:
+                word_scores = []
+                for symptom_word in symptom_words:
+                    score = similarity_score(user_word, symptom_word)
+                    word_scores.append(score)
+                if word_scores:
+                    symptom_score = max(symptom_score, max(word_scores))
+            
+            # Also check full string similarity
+            full_score = similarity_score(user_input, symptom)
+            final_score = max(symptom_score, full_score)
+            
+            if final_score > best_score:
+                best_score = final_score
+                best_match = symptom
+        
+        if best_match:
+            print(f"🔍 Fuzzy matched '{user_input}' to '{best_match}' (confidence: {best_score:.1%})")
+        
+        return best_match
 
     def _dispense_options(self, user_input):
         s = self.state
