@@ -39,7 +39,7 @@ class SymptomPredictor:
         self.real_time_learning = real_time_learning
         self.user_interactions = []
         self.interaction_file = "user_interactions.json"
-        self.min_interactions_for_retrain = 2  # Retrain every 2 user interactions
+        self.min_interactions_for_retrain = 2  # Retrain every 2 complete user conversations
         self.last_retrain_count = 0
         
         # Load existing interactions if available

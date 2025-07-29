@@ -174,7 +174,7 @@ def get_global_df_and_predictor():
                 if col in _GLOBAL_DF.columns:
                     _GLOBAL_DF[col] = _GLOBAL_DF[col].apply(lambda s: s.strip().title() if isinstance(s, str) else s)
         if _GLOBAL_PREDICTOR is None:
-            _GLOBAL_PREDICTOR = SymptomPredictor()
+            _GLOBAL_PREDICTOR = SymptomPredictor(real_time_learning=True)  # Enable real-time learning
             _GLOBAL_PREDICTOR.train_on_csv(DATASET_PATH)
     return _GLOBAL_DF, _GLOBAL_PREDICTOR
 
@@ -285,6 +285,8 @@ class TerminalStyleWebChatbot:
                     }
                 s['user_flags'][s['ml_symptom']] = ans
                 s['asked'].add(s['ml_symptom'])
+                
+                # 🔄 REMOVED: No longer learning after each question - only after complete conversation
                 s['ml_symptom'] = None  # Clear the current symptom
                 
                 # 🔄 NEW: Check if user has confirmed 2 symptoms with "Yes"
@@ -618,6 +620,25 @@ class TerminalStyleWebChatbot:
         s = self.state
         row = s['final_row']
         rec = row["OTC/Doc"] if "OTC/Doc" in row else row["Otc/Doc"]
+        
+        # 🔄 NEW: Add complete conversation to learning system (only once per conversation)
+        demographics = {}
+        if s.get('age_bucket') is not None:
+            demographics['Age'] = s['age_bucket']
+        if s.get('weight_bucket') is not None:
+            demographics['Weight'] = s['weight_bucket']
+        if s.get('gender') is not None:
+            demographics['Gender'] = s['gender']
+        
+        # Add complete conversation to learning system
+        self.predictor.add_user_interaction(
+            demographics=demographics,
+            symptoms=s['user_flags'].copy(),
+            final_recommendation=rec,
+            success_rating=None  # Could be added later with user feedback
+        )
+        
+        print(f"🔄 Learning: Added complete conversation to training data (recommendation: '{rec}')")
         # If recommendation is consult doctor, stop after showing recommendation
         if 'consult doctor' in rec.lower():
             s['step'] = 'done'
