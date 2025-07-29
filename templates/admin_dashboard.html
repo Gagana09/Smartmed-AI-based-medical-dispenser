@@ -128,6 +128,22 @@
       font-size: 0.98em;
       color: #007bff;
     }
+    
+    /* Expired medicines disclaimer styles */
+    .expired-medicines-disclaimer {
+      animation: fadeIn 0.5s ease-in;
+    }
+    
+    .expired-medicines-disclaimer h3 {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     </style>
 </head>
 <body>
@@ -140,15 +156,27 @@
     </header>
 
     <main>
+      <!-- Expired Medicines Disclaimer -->
+      {% if expired_medicines %}
+      <div class="expired-medicines-disclaimer" style="background-color: #ffebee; border: 2px solid #f44336; border-radius: 8px; padding: 20px; margin: 20px; color: #c62828;">
+        <h3 style="margin-top: 0; color: #d32f2f;">⚠️ EXPIRED MEDICINES ALERT</h3>
+        <p style="margin-bottom: 0; font-weight: bold;">
+          The following medicines have expired and must be removed from inventory: 
+          {% for med in expired_medicines %}{{ med.name }}{% if not loop.last %}, {% endif %}{% endfor %}
+        </p>
+      </div>
+      {% endif %}
+      
       <div class="dashboard-container">
         <section class="medicine-panel">
           <h2 style="margin-top:0;">Medicine Inventory</h2>
           <div class="medicine-actions" style="margin-bottom: 15px; display: flex; gap: 10px;">
-            <button id="add-medicine-btn" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Add New Medicine</button>
+            <button id="add-medicine-btn" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Add Medicine Back</button>
             <button id="bulk-update-btn" style="background-color: #2196F3; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Bulk Update</button>
+            <button id="auto-update-expired-btn" style="background-color: #FF9800; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Auto-Update Expired</button>
           </div>
           <div class="info-box" style="background-color: #e3f2fd; border: 1px solid #2196F3; border-radius: 4px; padding: 10px; margin-bottom: 15px;">
-            <p style="margin: 0; font-size: 0.9em;"><strong>Tip:</strong> Use the <span style="color: #2e7d32;">+</span> and <span style="color: #c62828;">-</span> buttons to adjust quantities. Click the <span style="color: #1565c0;">📅</span> button to update expiry dates.</p>
+            <p style="margin: 0; font-size: 0.9em;"><strong>Tip:</strong> Use the <span style="color: #2e7d32;">+</span> and <span style="color: #c62828;">-</span> buttons to adjust quantities. Click the <span style="color: #1565c0;">📅</span> button to update expiry dates. <span style="color: #FF9800;">Auto-Update Expired</span> automatically sets quantity to 0 for expired medicines.</p>
           </div>
           <table id="medicine-table">
             <thead>
@@ -214,26 +242,50 @@
     document.addEventListener('DOMContentLoaded', function() {
         // Add new medicine functionality
         document.getElementById('add-medicine-btn').addEventListener('click', function() {
+            // Get medicines with quantity 0 from the table
+            const zeroQuantityMedicines = [];
+            document.querySelectorAll('#medicine-table tbody tr').forEach(row => {
+                const name = row.getAttribute('data-name');
+                const quantityElement = row.querySelector('.quantity');
+                const quantity = parseInt(quantityElement.textContent) || 0;
+                if (quantity === 0) {
+                    zeroQuantityMedicines.push(name);
+                }
+            });
+            
+            if (zeroQuantityMedicines.length === 0) {
+                alert('No medicines found to add back to inventory.');
+                return;
+            }
+            
+            // Create dropdown options for medicines with zero quantity
+            let dropdownOptions = '<option value="">Select the medicine to be added</option>';
+            zeroQuantityMedicines.forEach(med => {
+                dropdownOptions += `<option value="${med}">${med}</option>`;
+            });
+            
             // Create a modal dialog for adding a new medicine
             const modalHtml = `
                 <div id="add-medicine-modal" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); display: flex; justify-content: center; align-items: center; z-index: 1000;">
                     <div style="background-color: white; padding: 20px; border-radius: 8px; width: 400px; max-width: 90%;">
-                        <h3 style="margin-top: 0;">Add New Medicine</h3>
+                        <h3 style="margin-top: 0;">Add Medicine to Inventory</h3>
                         <div style="margin-bottom: 15px;">
-                            <label for="new-medicine-name" style="display: block; margin-bottom: 5px;">Medicine Name:</label>
-                            <input type="text" id="new-medicine-name" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                            <label for="new-medicine-name" style="display: block; margin-bottom: 5px;">Select the medicine to be added:</label>
+                            <select id="new-medicine-name" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                                ${dropdownOptions}
+                            </select>
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label for="new-medicine-quantity" style="display: block; margin-bottom: 5px;">Quantity:</label>
-                            <input type="number" id="new-medicine-quantity" min="0" value="0" style="width: 100%; padding: 8px; box-sizing: border-box;">
+                            <label for="new-medicine-quantity" style="display: block; margin-bottom: 5px;">Quantity to Add:</label>
+                            <input type="number" id="new-medicine-quantity" min="1" value="1" style="width: 100%; padding: 8px; box-sizing: border-box;">
                         </div>
                         <div style="margin-bottom: 15px;">
-                            <label for="new-medicine-expiry" style="display: block; margin-bottom: 5px;">Expiry Date (YYYY-MM-DD):</label>
+                            <label for="new-medicine-expiry" style="display: block; margin-bottom: 5px;">New Expiry Date:</label>
                             <input type="date" id="new-medicine-expiry" style="width: 100%; padding: 8px; box-sizing: border-box;">
                         </div>
                         <div style="display: flex; justify-content: flex-end;">
                             <button id="cancel-add-medicine" style="background-color: #f44336; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; margin-right: 10px;">Cancel</button>
-                            <button id="save-new-medicine" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Save</button>
+                            <button id="save-new-medicine" style="background-color: #4CAF50; color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer;">Add to Inventory</button>
                         </div>
                     </div>
                 </div>
@@ -256,12 +308,12 @@
             
             // Handle save button
              document.getElementById('save-new-medicine').addEventListener('click', function() {
-                 const name = document.getElementById('new-medicine-name').value.trim();
+                 const name = document.getElementById('new-medicine-name').value;
                  const quantity = parseInt(document.getElementById('new-medicine-quantity').value) || 0;
                  const expiryDate = document.getElementById('new-medicine-expiry').value;
                  
                  if (!name) {
-                     alert('Please enter a medicine name');
+                     alert('Please select a medicine from the dropdown');
                      return;
                  }
                  
@@ -463,6 +515,34 @@
                 updateQuantity(name, -1, row);
             });
         });
+
+
+        
+        // Auto-update expired medicines functionality
+        document.getElementById('auto-update-expired-btn').addEventListener('click', function() {
+            if (confirm('This will automatically set quantity to 0 for all expired medicines. Continue?')) {
+                fetch('/admin/auto-update-expired', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.success) {
+                        alert(data.message);
+                        // Reload the page to show updated quantities
+                        window.location.reload();
+                    } else {
+                        alert(data.message || 'Failed to auto-update expired medicines');
+                    }
+                })
+                .catch(err => {
+                    console.error('Error auto-updating expired medicines:', err);
+                    alert('An error occurred while auto-updating expired medicines');
+                });
+            }
+        });
+
+
     });
     </script>
 

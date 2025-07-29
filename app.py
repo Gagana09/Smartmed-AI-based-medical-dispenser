@@ -145,21 +145,22 @@ def add_medicine():
     if not name or name.strip() == '':
         return jsonify({'success': False, 'message': 'Medicine name is required'})
     
-    # Check if medicine already exists
+    # Check if medicine exists (it should exist since it's from expired list)
     existing_medicine = db.medicines.find_one({'name': name})
-    if existing_medicine:
-        return jsonify({'success': False, 'message': f'Medicine "{name}" already exists'})
+    if not existing_medicine:
+        return jsonify({'success': False, 'message': f'Medicine "{name}" not found'})
     
-    # Add new medicine
-    new_medicine = {
-        'name': name,
-        'quantity': quantity,
-        'expiry_date': expiry_date
-    }
+    # Add quantity to existing medicine and update expiry date
+    update_data = {'$inc': {'quantity': quantity}}
+    if expiry_date:
+        update_data['$set'] = {'expiry_date': expiry_date}
     
-    db.medicines.insert_one(new_medicine)
+    result = db.medicines.update_one({'name': name}, update_data)
     
-    return jsonify({'success': True, 'message': f'Medicine "{name}" added successfully'})
+    if result.modified_count > 0:
+        return jsonify({'success': True, 'message': f'Added {quantity} units of "{name}" to inventory with new expiry date'})
+    else:
+        return jsonify({'success': False, 'message': f'Failed to update medicine "{name}"'})
 
 @app.route('/admin/medicines/bulk-update', methods=['POST'])
 def bulk_update_medicines():
@@ -232,17 +233,80 @@ def calculate_expiry_status(expiry_date):
         return 'expiring_soon'
     return 'valid'
 
+def auto_update_expired_medicines():
+    """Automatically set quantity to 0 for expired medicines"""
+    today = datetime.datetime.now().date()
+    
+    # Find all medicines that are expired but still have quantity > 0
+    expired_medicines = db.medicines.find({
+        'expiry_date': {'$exists': True, '$ne': None},
+        'quantity': {'$gt': 0}
+    })
+    
+    updated_count = 0
+    for medicine in expired_medicines:
+        try:
+            expiry_date = datetime.datetime.strptime(medicine['expiry_date'], '%Y-%m-%d').date()
+            if expiry_date < today:
+                # Set quantity to 0 for expired medicine
+                db.medicines.update_one(
+                    {'_id': medicine['_id']}, 
+                    {'$set': {'quantity': 0}}
+                )
+                updated_count += 1
+                print(f"🔄 Auto-updated: {medicine['name']} quantity set to 0 (expired on {medicine['expiry_date']})")
+        except Exception as e:
+            print(f"Error processing medicine {medicine.get('name', 'Unknown')}: {e}")
+    
+    if updated_count > 0:
+        print(f"✅ Auto-updated {updated_count} expired medicines to quantity 0")
+    
+    return updated_count
+
+def get_expired_medicines():
+    """Get all expired medicines that need to be removed"""
+    today = datetime.datetime.now().date()
+    
+    expired_medicines = []
+    medicines = db.medicines.find({
+        'expiry_date': {'$exists': True, '$ne': None}
+    })
+    
+    for medicine in medicines:
+        try:
+            expiry_date = datetime.datetime.strptime(medicine['expiry_date'], '%Y-%m-%d').date()
+            if expiry_date < today:
+                expired_medicines.append({
+                    'name': medicine['name'],
+                    'expiry_date': medicine['expiry_date'],
+                    'quantity': medicine.get('quantity', 0),
+                    '_id': str(medicine['_id'])
+                })
+        except Exception as e:
+            print(f"Error processing medicine {medicine.get('name', 'Unknown')}: {e}")
+    
+    return expired_medicines
+
+
+
 @app.route('/admin_dashboard')
 def admin_dashboard():
     # Only allow admin
     if session.get('user', {}).get('role') != 'admin':
         return redirect(url_for('login'))
     
+    # Auto-update expired medicines to quantity 0
+    auto_update_expired_medicines()
+    
     medicines = list(db.medicines.find({}, {'_id': 0}))
     # Calculate expiry status for each medicine
     for medicine in medicines:
         expiry_date = medicine.get('expiry_date')
         medicine['expiry_status'] = calculate_expiry_status(expiry_date)
+    
+    # Get expired medicines for disclaimer
+    expired_medicines = get_expired_medicines()
+    
     # Build user info: username, list of chat sessions (date, symptoms, dispensed)
     users = []
     for user_doc in db.users.find({}, {'username': 1, 'chat_history': 1}):
@@ -262,10 +326,13 @@ def admin_dashboard():
             'username': username,
             'sessions': sessions[::-1]  # most recent first
         })
-    return render_template('admin_dashboard.html', medicines=medicines, users=users)
+    return render_template('admin_dashboard.html', medicines=medicines, users=users, expired_medicines=expired_medicines)
 
 @app.route('/user_dashboard')
 def user_dashboard():
+    # Auto-update expired medicines to quantity 0
+    auto_update_expired_medicines()
+    
     username = session.get('user', {}).get('username')
     print(f"DEBUG: user_dashboard accessed by username: {username}")
     # Use session state only, do not load from DB except at start
@@ -436,6 +503,9 @@ def chat():
 @app.route('/medicine_gateway', methods=['GET', 'POST'])
 def medicine_gateway():
     if request.method == 'POST':
+        # Auto-update expired medicines to quantity 0 before dispensing
+        auto_update_expired_medicines()
+        
         username = session.get('username')
         medicine = request.args.get('medicine', '')
         # Use Indian timezone for payment_time
@@ -592,6 +662,18 @@ def get_user_interactions():
 def learning_dashboard():
     """Admin dashboard for monitoring real-time learning"""
     return render_template('learning_dashboard.html')
+
+@app.route('/admin/auto-update-expired', methods=['POST'])
+def trigger_auto_update_expired():
+    """Manual trigger to update expired medicines (admin only)"""
+    if session.get('user', {}).get('role') != 'admin':
+        return jsonify({'success': False, 'message': 'Admin access required'})
+    
+    updated_count = auto_update_expired_medicines()
+    return jsonify({
+        'success': True, 
+        'message': f'Auto-updated {updated_count} expired medicines to quantity 0'
+    })
 
 
 if __name__ == "__main__":
