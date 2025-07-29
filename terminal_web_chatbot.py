@@ -286,6 +286,14 @@ class TerminalStyleWebChatbot:
                 s['user_flags'][s['ml_symptom']] = ans
                 s['asked'].add(s['ml_symptom'])
                 s['ml_symptom'] = None  # Clear the current symptom
+                
+                # 🔄 NEW: Check if user has confirmed 2 symptoms with "Yes"
+                yes_count = sum(1 for v in s['user_flags'].values() if v == "Yes")
+                if yes_count >= 2:
+                    print(f"🧠 ML Decision: Stopping questions - user has confirmed {yes_count} symptoms")
+                    s['step'] = 'filter_and_followup'
+                    return self._filter_and_followup()
+                
             # Find next unasked symptom
             unasked = [sym for sym in s['symptom_list'] if sym not in s['asked']]
             if not unasked:
