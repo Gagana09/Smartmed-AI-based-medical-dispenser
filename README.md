@@ -1,7 +1,7 @@
 # SmartMed: AI-Based Medical Dispenser 🤖💊
 
 ## What it does
-An AI system that asks about your symptoms and recommends over-the-counter medicines. It collects your age, weight, and gender to give personalized suggestions. 🩺
+SmartMed is an AI-powered system that interacts with users to understand their symptoms and recommends suitable over-the-counter medicines. It takes into account your age, weight, and gender to provide personalized suggestions. 🩺
 
 ## Key Features
 - **User Registration & Login**  - Secure account creation
@@ -25,4 +25,5 @@ An AI system that asks about your symptoms and recommends over-the-counter medic
 3. Manage medicine stock levels 
 4. View user statistics and system usage 
 5. Monitor dispensing activities 
+
 
