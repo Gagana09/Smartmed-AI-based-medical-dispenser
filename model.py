@@ -1,7 +1,6 @@
 # SmartMedAI: Predict Tablet, Dosage, Frequency & Duration
 # Reads Excel with possibly misnamed columns and normalizes headers
 
-# 1. Imports
 import pandas as pd
 import numpy as np
 from sklearn.feature_extraction.text import TfidfVectorizer

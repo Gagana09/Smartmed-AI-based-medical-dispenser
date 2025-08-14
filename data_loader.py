@@ -12,7 +12,7 @@ from collections import Counter
 
 EXCEL_PATH = r'C:\Users\Supriya S\OneDrive\Desktop\IDP\Data from books .xlsx'
 
-# --- Symptom flag mapping and binning helpers ---
+# ---- Symptom flag mapping and binning helpers ----
 
 SYMPTOM_FLAGS = {
     'fever': ['fever', 'temperature', 'high temp', 'pyrexia'],

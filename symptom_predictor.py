@@ -42,7 +42,7 @@ class SymptomPredictor:
         self.min_interactions_for_retrain = 2  # Retrain every 2 complete user conversations
         self.last_retrain_count = 0
         
-        # Load existing interactions if available
+        #Load existing interactions if available
         self._load_user_interactions()
 
     def _load_user_interactions(self):

@@ -10,7 +10,7 @@ from mlxtend.frequent_patterns import apriori, association_rules
 from mlxtend.preprocessing import TransactionEncoder
 import warnings
 warnings.filterwarnings('ignore')
-
+#symptom list
 SYMPTOMS = ["Fever", "Common Cold", "Cough", "Body Pain", "Headache",
             "Menstrual Cramps", "Sprain", "Indigestion", "Toothache"]
 

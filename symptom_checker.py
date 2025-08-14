@@ -60,7 +60,7 @@ class SymptomChecker:
         self.current_symptoms[first_symptom] = "Yes"
         self.available_symptoms.remove(first_symptom)
         
-        # Ask about other symptoms using ML
+        # Ask about other symptoms using ML 
         while True:
             ranked = self.predictor.get_next_best_symptom(self.current_symptoms, self.available_symptoms, self.demographics)
             if not ranked or ranked[0]['probability'] < 0.1:

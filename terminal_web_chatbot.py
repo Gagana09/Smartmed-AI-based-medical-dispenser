@@ -15,7 +15,7 @@ _GLOBAL_DF = None
 _GLOBAL_PREDICTOR = None
 _GLOBAL_LOCK = threading.Lock()
 
-# List of medicines to check for dispensing prompt
+#List of medicines to check for dispensing prompt
 MEDICINE_LIST = [
     'Paracetamol 500 mg',
     'Vitamin C (Limcee)',

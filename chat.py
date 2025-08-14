@@ -4,7 +4,7 @@ from symptom_checker import SymptomChecker
 import json
 from datetime import datetime
 
-# --- CONFIG ---
+# --- CONFIG --
 DATASET_PATH = r"C:/Users/Supriya S/OneDrive/Desktop/IDP/dataset_1.xlsx"
 AGE_BUCKETS = [(18, 25, "18-25"), (26, 35, "26-35"), (36, 50, "36-50"), (51, 80, "50-80")]
 WEIGHT_BUCKETS = [(40, 60, "40-60"), (61, 90, "60-90"), (91, 300, ">90")]

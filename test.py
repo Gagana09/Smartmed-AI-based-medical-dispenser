@@ -3,7 +3,7 @@ from itertools import combinations
 from collections import Counter
 from symptom_checker import SymptomChecker
 
-# Load your dataset from Excel file
+#Load your dataset from Excel file
 file_path = r'C:\Users\supri\Smartmed-AI-based-medical-dispenser\dataset_1.xlsx'
 
 try:

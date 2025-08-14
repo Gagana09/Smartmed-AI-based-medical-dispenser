@@ -9,7 +9,7 @@ import datetime
 import pytz
 import serial   
 import time   
-# Load environment variables from .env (only GROQ_API_KEY expected)
+
 load_dotenv()
 
 to_load = os.environ.get('GROQ_API_KEY')
