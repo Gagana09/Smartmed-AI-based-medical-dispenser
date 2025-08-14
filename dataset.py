@@ -45,7 +45,7 @@ class MedicalNLPPreprocessor:
             else:
                 print(f"Installing {package}...")
             
-            # Use --user only if NOT in virtual environment
+            #Use --user only if NOT in virtual environment
             install_cmd = [sys.executable, "-m", "pip", "install", package, "--upgrade", "--no-deps"]
             if not in_venv:
                 install_cmd.insert(-2, "--user")  # Insert before --upgrade
